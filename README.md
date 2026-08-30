@@ -33,11 +33,14 @@ uv run uvicorn jobs_back.main:app --reload --port 8000
 
 Health check: `curl http://localhost:8000/health` → `{"status":"ok"}`
 
-### Lint and test
+### CI
+
+Run the same validation as GitHub Actions (requires `uv sync --group dev` first):
 
 ```bash
-uv run ruff check src tests alembic
-uv run pytest
+./ci.sh          # full suite
+./ci.sh lint
+./ci.sh test
 ```
 
 ### Migrations
