@@ -43,6 +43,27 @@ Run the same validation as GitHub Actions (requires `uv sync --group dev` first)
 ./ci.sh test
 ```
 
+### Git hooks
+
+Install and register commit + push hooks (included in dev dependencies):
+
+```bash
+uv sync --group dev
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+Hook behavior:
+
+- **pre-commit**: `ruff format` and `ruff check --fix` on staged Python files
+- **pre-push**: `./ci.sh` (full CI suite)
+
+Run hooks manually:
+
+```bash
+uv run pre-commit run --all-files
+uv run pre-commit run --hook-stage pre-push --all-files
+```
+
 ### Migrations
 
 Alembic is configured against `Base.metadata` and `DATABASE_URL`. There are no domain models yet; create the first revision when the Job schema lands:
