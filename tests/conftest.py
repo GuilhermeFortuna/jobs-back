@@ -8,9 +8,13 @@ from collections.abc import Generator
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+
+from jobs_back.db import get_db
+from jobs_back.main import create_app
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -87,3 +91,16 @@ def committed_session(committed_engine: Engine) -> Generator[Session, None, None
         session.commit()
     finally:
         session.close()
+
+
+@pytest.fixture
+def api_client(db_session: Session) -> Generator[TestClient, None, None]:
+    app = create_app()
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()

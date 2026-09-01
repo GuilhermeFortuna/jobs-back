@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -11,33 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from jobs_back.models import Job
-from jobs_back.models.enums import (
-    EmploymentType,
-    JobStatus,
-    RemoteType,
-    SalaryPeriod,
-)
-
-
-def _job(**overrides: object) -> Job:
-    now = datetime.now(tz=UTC)
-    data: dict[str, object] = {
-        "id": uuid.uuid4(),
-        "provider": "example",
-        "provider_job_id": f"job-{uuid.uuid4()}",
-        "raw_payload": {"source": "test"},
-        "title": "Software Engineer",
-        "company": "Acme",
-        "employment_type": EmploymentType.FULL_TIME.value,
-        "remote_type": RemoteType.REMOTE.value,
-        "job_url": "https://example.com/jobs/1",
-        "status": JobStatus.ACTIVE.value,
-        "discovered_at": now,
-        "last_seen_at": now,
-        "updated_at": now,
-    }
-    data.update(overrides)
-    return Job(**data)  # type: ignore[arg-type]
+from jobs_back.models.enums import JobStatus, SalaryPeriod
+from tests.helpers.jobs import make_job as _job
 
 
 def test_round_trip_minimal_job(db_session: Session) -> None:

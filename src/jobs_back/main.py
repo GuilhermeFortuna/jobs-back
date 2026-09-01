@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from jobs_back.api.jobs import router as jobs_router
 from jobs_back.config import get_settings
 
 
@@ -15,6 +16,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.include_router(jobs_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:
