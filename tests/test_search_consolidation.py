@@ -147,3 +147,50 @@ async def test_completed_total_uses_consolidated_count() -> None:
     assert final is not None
     assert final.total == 3
     await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_remotive_duplicate_consolidates_with_existing_provider() -> None:
+    duplicate = make_job_result(
+        provider="himalayas",
+        provider_job_id="h-1",
+        company="Acme Corp, Inc.",
+        title="Senior Python Developer [Remote]",
+    )
+    twin = make_job_result(
+        provider="remotive",
+        provider_job_id="r-1",
+        company="ACME CORP",
+        title="Senior Python Developer",
+        job_url="https://remotive.com/remote-jobs/1",
+        apply_url="https://remotive.com/remote-jobs/1",
+    )
+    providers = [
+        FakeProvider(
+            key="himalayas",
+            total_pages=1,
+            items_per_page=1,
+            item_factory=lambda _p, _i: duplicate,
+        ),
+        FakeProvider(
+            key="remotive",
+            total_pages=1,
+            items_per_page=1,
+            item_factory=lambda _p, _i: twin,
+        ),
+    ]
+    manager = multi_provider_manager(providers)
+    started = manager.start(uuid4(), SearchFilters())
+    for _ in range(60):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(started.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    final = manager.page(started.state.id, 1, 25)
+    assert final is not None
+    assert final.total == 1
+    item = final.items[0]
+    providers_seen = {item.provider, *(s.provider for s in item.alternate_sources)}
+    assert providers_seen == {"himalayas", "remotive"}
+    await manager.close()

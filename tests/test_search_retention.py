@@ -74,10 +74,15 @@ def test_unconfigured_adzuna_does_not_inflate_budget() -> None:
     from jobs_back.providers.registry import enabled_provider_count
 
     settings = Settings(provider_config_json="{}")
-    assert enabled_provider_count(settings) == 3
+    assert enabled_provider_count(settings) == 5
     assert settings.effective_search_max_items(enabled_provider_count(settings)) == (
-        settings.effective_search_max_items(3)
+        settings.effective_search_max_items(5)
     )
+
+
+def test_item_budget_scales_with_five_enabled_providers() -> None:
+    settings = Settings()
+    assert settings.effective_search_max_items(5) == BASELINE_MAX_ITEMS * 5
 
 
 @pytest.mark.asyncio

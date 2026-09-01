@@ -45,9 +45,11 @@ def test_credentials_never_appear_in_providers_response(
 def test_startup_succeeds_without_adzuna_credentials() -> None:
     settings = Settings(provider_config_json="{}")
     providers = build_providers(settings)
-    assert enabled_provider_count(settings) == 3
+    assert enabled_provider_count(settings) == 5
     assert [provider.key for provider in providers] == [
         "himalayas",
         "remoteok",
         "jobicy",
+        "remotive",
+        "weworkremotely",
     ]

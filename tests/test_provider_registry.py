@@ -19,8 +19,10 @@ def test_empty_config_enables_keyless_defaults_without_adzuna() -> None:
         "himalayas",
         "remoteok",
         "jobicy",
+        "remotive",
+        "weworkremotely",
     ]
-    assert enabled_provider_count(settings) == 3
+    assert enabled_provider_count(settings) == 5
     states = resolve_all_provider_states(settings)
     assert states["adzuna"] == "unconfigured"
 
@@ -32,7 +34,7 @@ def test_adzuna_enabled_when_credentials_present() -> None:
     )
     providers = build_providers(settings)
     assert [provider.key for provider in providers] == list(KNOWN_KEYS)
-    assert enabled_provider_count(settings) == 4
+    assert enabled_provider_count(settings) == 6
     assert resolve_provider_state("adzuna", settings) == "enabled"
 
 
@@ -55,7 +57,12 @@ def test_adzuna_disabled_by_configuration() -> None:
 def test_disable_provider_by_config() -> None:
     settings = Settings(provider_config_json='{"jobicy": {"enabled": false}}')
     providers = build_providers(settings)
-    assert [provider.key for provider in providers] == ["himalayas", "remoteok"]
+    assert [provider.key for provider in providers] == [
+        "himalayas",
+        "remoteok",
+        "remotive",
+        "weworkremotely",
+    ]
 
 
 def test_unknown_key_rejected() -> None:
@@ -75,7 +82,8 @@ def test_empty_enabled_set_rejected() -> None:
             Settings(
                 provider_config_json='{"himalayas": {"enabled": false}, '
                 '"remoteok": {"enabled": false}, "jobicy": {"enabled": false}, '
-                '"adzuna": {"enabled": false}}'
+                '"adzuna": {"enabled": false}, "remotive": {"enabled": false}, '
+                '"weworkremotely": {"enabled": false}}'
             )
         )
 

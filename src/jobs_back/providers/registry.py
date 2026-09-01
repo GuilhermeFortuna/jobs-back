@@ -8,10 +8,12 @@ from jobs_back.providers.himalayas import HimalayasProvider
 from jobs_back.providers.jobicy import JobicyProvider
 from jobs_back.providers.protocol import ProgressiveProvider
 from jobs_back.providers.remoteok import RemoteOKProvider
+from jobs_back.providers.remotive import RemotiveProvider
+from jobs_back.providers.weworkremotely import WeWorkRemotelyProvider
 
 ProviderState = Literal["enabled", "unconfigured", "disabled"]
 
-KNOWN_KEYS = ("himalayas", "remoteok", "jobicy", "adzuna")
+KNOWN_KEYS = ("himalayas", "remoteok", "jobicy", "adzuna", "remotive", "weworkremotely")
 DEFAULT_ENABLED = KNOWN_KEYS
 
 # Human-readable provider names. The API serves these so a new adapter needs no
@@ -21,6 +23,8 @@ PROVIDER_DISPLAY_NAMES = {
     "remoteok": "Remote OK",
     "jobicy": "Jobicy",
     "adzuna": "Adzuna",
+    "remotive": "Remotive",
+    "weworkremotely": "We Work Remotely",
 }
 
 # Settings attribute names required for a provider to be constructible.
@@ -29,6 +33,8 @@ PROVIDER_REQUIRED_CREDENTIALS: dict[str, tuple[str, ...]] = {
     "remoteok": (),
     "jobicy": (),
     "adzuna": ("adzuna_app_id", "adzuna_app_key"),
+    "remotive": (),
+    "weworkremotely": (),
 }
 
 
@@ -136,6 +142,15 @@ def _factory(
                 settings.adzuna_timeout_seconds,
             ),
             request_budget=_coerce_int(options.get("request_budget"), 50),
+        )
+    if key == "remotive":
+        return RemotiveProvider(
+            timeout=_coerce_float(options.get("timeout"), 20.0),
+        )
+    if key == "weworkremotely":
+        return WeWorkRemotelyProvider(
+            timeout=_coerce_float(options.get("timeout"), 20.0),
+            batch_size=_coerce_int(options.get("batch_size"), 100),
         )
     msg = f"Unknown provider key: {key}"
     raise ValueError(msg)

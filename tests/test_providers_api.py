@@ -41,11 +41,19 @@ def test_lists_every_known_provider_with_state(
         "Remote OK",
         "Jobicy",
         "Adzuna",
+        "Remotive",
+        "We Work Remotely",
     }
     adzuna = next(entry for entry in body if entry["key"] == "adzuna")
     assert adzuna["state"] == "unconfigured"
     enabled = [entry for entry in body if entry["state"] == "enabled"]
-    assert [entry["key"] for entry in enabled] == ["himalayas", "remoteok", "jobicy"]
+    assert [entry["key"] for entry in enabled] == [
+        "himalayas",
+        "remoteok",
+        "jobicy",
+        "remotive",
+        "weworkremotely",
+    ]
 
 
 def test_disabled_provider_reported_but_not_in_manager(
@@ -61,7 +69,12 @@ def test_disabled_provider_reported_but_not_in_manager(
     manager_keys = [
         provider.key for provider in client.app.state.search_manager.providers
     ]
-    assert manager_keys == ["himalayas", "remoteok"]
+    assert manager_keys == [
+        "himalayas",
+        "remoteok",
+        "remotive",
+        "weworkremotely",
+    ]
     assert "jobicy" not in manager_keys
 
 
