@@ -9,6 +9,7 @@ from jobs_back.config import Settings
 from jobs_back.schemas.discovery import SearchFilters
 from jobs_back.search.live import LiveSearchManager, canonical_filters, filter_key
 from jobs_back.services.exceptions import SearchExpiredError
+from tests.helpers.discovery import make_job_result
 from tests.helpers.fake_provider import FakeProvider
 
 
@@ -76,7 +77,14 @@ async def test_first_page_failure_marks_search_failed() -> None:
 
 @pytest.mark.asyncio
 async def test_profile_scoped_indexes_do_not_cross_profiles() -> None:
-    provider = FakeProvider(total_pages=1, items_per_page=1)
+    provider = FakeProvider(
+        total_pages=1,
+        items_per_page=1,
+        item_factory=lambda page, index: make_job_result(
+            provider_job_id=f"job-{page}-{index}",
+            title=f"Python Role {page}-{index}",
+        ),
+    )
     manager = LiveSearchManager(provider=provider)
     profile_a = uuid4()
     profile_b = uuid4()

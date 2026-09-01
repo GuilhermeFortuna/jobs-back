@@ -30,6 +30,7 @@ class SearchFilters(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query: str = Field(default="", max_length=200)
+    location: str = Field(default="", max_length=80)
     country: str | None = Field(default=None, max_length=80)
     worldwide: bool | None = None
     seniority: list[str] = Field(default_factory=list, max_length=10)
@@ -39,9 +40,9 @@ class SearchFilters(BaseModel):
     posted_within_days: int | None = Field(default=None, ge=1, le=3650)
     sort: SearchSort = SearchSort.RELEVANCE
 
-    @field_validator("query")
+    @field_validator("query", "location")
     @classmethod
-    def trim_query(cls, value: str) -> str:
+    def trim_whitespace(cls, value: str) -> str:
         return " ".join(value.split())
 
 
@@ -97,6 +98,8 @@ class JobResult(BaseModel):
     apply_url: HttpUrl | None = None
     company_logo_url: HttpUrl | None = None
     posted_at: datetime | None = None
+    relevance_score: float = 0.0
+    matched_skills: list[str] = Field(default_factory=list)
     alternate_sources: list[AlternateSource] = Field(default_factory=list)
     provider_payload: dict[str, Any] = Field(default_factory=dict, exclude=True)
 

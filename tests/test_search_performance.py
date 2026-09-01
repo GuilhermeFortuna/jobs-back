@@ -100,3 +100,37 @@ async def test_consolidation_scales_sub_quadratically_with_duplicates() -> None:
     large = await run(100_000)
     await manager.close()
     assert large / small <= 20
+
+
+@pytest.mark.benchmark
+@pytest.mark.asyncio
+async def test_relevance_filter_and_sort_scales_sub_quadratically() -> None:
+    skills = [{"label": f"skill-{index}", "token": "python"} for index in range(10)]
+    filters = SearchFilters(query="python", sort="relevance")
+
+    async def run(count: int) -> float:
+        base = datetime(2024, 1, 1, tzinfo=UTC)
+        items = [
+            make_job_result(
+                provider_job_id=f"job-{index}",
+                title=f"Python Role {index}",
+                description=f"Backend services {index}",
+                posted_at=base + timedelta(days=index % 365),
+            )
+            for index in range(count)
+        ]
+        provider = StaticProvider(items)
+        manager = LiveSearchManager(provider=provider)
+        state = manager.start(uuid4(), filters, profile_skills=skills).state
+        started = time.perf_counter()
+        await manager._populate(state, (uuid4(), "key"))
+        elapsed = time.perf_counter() - started
+        assert state.status == "complete"
+        assert len(state.items) == count
+        assert all(item.relevance_score > 0 for item in state.items)
+        await manager.close()
+        return elapsed
+
+    small = await run(10_000)
+    large = await run(100_000)
+    assert large / small <= 15

@@ -73,7 +73,7 @@ async def create_search(
     if profile is None:
         raise HTTPException(404, "Profile not found")
     filters = body.filters or SearchFilters.model_validate(profile.preferences)
-    started = manager.start(profile.id, filters)
+    started = manager.start(profile.id, filters, profile_skills=profile.skills)
     return _search_page_or_error(manager, started.state.id, 1, 25, profile.id)
 
 
@@ -113,6 +113,9 @@ async def refresh_default_search(
     if profile is None:
         raise HTTPException(404, "Profile not found")
     started = manager.start(
-        profile.id, SearchFilters.model_validate(profile.preferences), force=True
+        profile.id,
+        SearchFilters.model_validate(profile.preferences),
+        profile_skills=profile.skills,
+        force=True,
     )
     return _refresh_page(manager, started, 1, 25, profile.id)

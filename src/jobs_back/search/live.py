@@ -21,6 +21,12 @@ from jobs_back.schemas.discovery import (
     SearchPage,
 )
 from jobs_back.search.consolidation import matches_source_identity, merge_results
+from jobs_back.search.relevance import (
+    job_matches_location,
+    job_matches_query,
+    normalize_query_tokens,
+    score_job,
+)
 from jobs_back.services.exceptions import (
     NotFoundError,
     SearchExpiredError,
@@ -38,6 +44,7 @@ REUSE_WINDOW = timedelta(minutes=20)
 def canonical_filters(filters: SearchFilters) -> SearchFilters:
     return SearchFilters(
         query=filters.query,
+        location=filters.location,
         country=filters.country,
         worldwide=filters.worldwide,
         seniority=sorted(filters.seniority),
@@ -80,6 +87,9 @@ class SearchState:
     dedup_index: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    profile_skills: list[tuple[str, str]] = field(default_factory=list)
+    query_tokens: list[str] = field(default_factory=list)
+    scored_at: datetime | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -137,7 +147,12 @@ class LiveSearchManager:
         task.add_done_callback(self._background_tasks.discard)
 
     def start(
-        self, profile_id: UUID, filters: SearchFilters, *, force: bool = False
+        self,
+        profile_id: UUID,
+        filters: SearchFilters,
+        *,
+        profile_skills: list[dict[str, str]] | None = None,
+        force: bool = False,
     ) -> SearchStartResult:
         key = filter_key(profile_id, filters)
         previous_search_id: UUID | None = None
@@ -165,10 +180,15 @@ class LiveSearchManager:
                     previous_search_id = stale_id
                     serving_search_id = stale_id
 
+        canonical = canonical_filters(filters)
         state = SearchState(
             id=uuid4(),
             profile_id=profile_id,
-            filters=canonical_filters(filters),
+            filters=canonical,
+            profile_skills=[
+                (skill["label"], skill["token"]) for skill in (profile_skills or [])
+            ],
+            query_tokens=normalize_query_tokens(canonical.query),
             provider_trackers={
                 provider.key: ProviderTracker(provider=provider.key)
                 for provider in self._active_providers(filters)
@@ -278,19 +298,38 @@ class LiveSearchManager:
             self._aggregate_progress(state.provider_trackers),
         )
 
-    @staticmethod
+    @classmethod
+    def _enrich_result(cls, state: SearchState, item: JobResult) -> JobResult:
+        now = state.scored_at or datetime.now(UTC)
+        relevance_score, matched_skills = score_job(
+            item,
+            state.query_tokens,
+            state.profile_skills,
+            now=now,
+        )
+        return item.model_copy(
+            update={
+                "relevance_score": relevance_score,
+                "matched_skills": matched_skills,
+            }
+        )
+
+    @classmethod
     def _consolidate_items(
+        cls,
         state: SearchState,
         items: list[JobResult],
     ) -> None:
         for item in items:
-            key = derive_dedup_key(item)
+            enriched = cls._enrich_result(state, item)
+            key = derive_dedup_key(enriched)
             if key in state.dedup_index:
                 idx = state.dedup_index[key]
-                state.items[idx] = merge_results(state.items[idx], item)
+                merged = merge_results(state.items[idx], enriched)
+                state.items[idx] = cls._enrich_result(state, merged)
             else:
                 state.dedup_index[key] = len(state.items)
-                state.items.append(item)
+                state.items.append(enriched)
 
     async def _consume_provider(
         self,
@@ -301,7 +340,7 @@ class LiveSearchManager:
         tracker = state.provider_trackers[provider.key]
         try:
             async for batch in provider.pages(state.filters):
-                filtered = self._filter(batch.items, state.filters)
+                filtered = self._filter(batch.items, state)
                 async with state.lock:
                     self._consolidate_items(state, filtered)
                     self._apply_batch(
@@ -359,6 +398,7 @@ class LiveSearchManager:
 
     async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
         try:
+            state.scored_at = datetime.now(UTC)
             active = self._active_providers(state.filters)
             tasks = [
                 asyncio.create_task(self._consume_provider(state, key, provider))
@@ -401,7 +441,8 @@ class LiveSearchManager:
             raise
 
     @staticmethod
-    def _filter(items: list[JobResult], filters: SearchFilters) -> list[JobResult]:
+    def _filter(items: list[JobResult], state: SearchState) -> list[JobResult]:
+        filters = state.filters
         cutoff = (
             datetime.now(UTC) - timedelta(days=filters.posted_within_days)
             if filters.posted_within_days
@@ -414,6 +455,10 @@ class LiveSearchManager:
                 if ceiling is None or ceiling < filters.minimum_salary:
                     continue
             if cutoff and (item.posted_at is None or item.posted_at < cutoff):
+                continue
+            if state.query_tokens and not job_matches_query(item, state.query_tokens):
+                continue
+            if filters.location and not job_matches_location(item, filters.location):
                 continue
             filtered.append(item)
         return filtered
@@ -439,7 +484,10 @@ class LiveSearchManager:
                 key=lambda item: (item.salary_max_annual or 0, cls._tiebreak(item)),
                 reverse=True,
             )
-        return sorted(items, key=cls._tiebreak)
+        return sorted(
+            items,
+            key=lambda item: (-item.relevance_score, cls._tiebreak(item)),
+        )
 
     def _provider_statuses(self, state: SearchState) -> list[ProviderSearchStatus]:
         return [
@@ -524,7 +572,12 @@ class LiveSearchManager:
                 return
             try:
                 filters = SearchFilters.model_validate(profile.preferences)
-                self.start(profile.id, filters, force=False)
+                self.start(
+                    profile.id,
+                    filters,
+                    profile_skills=profile.skills,
+                    force=False,
+                )
             except Exception:
                 logger.warning(
                     "Startup search warming failed for profile %s",
