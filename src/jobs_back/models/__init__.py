@@ -5,8 +5,12 @@ from jobs_back.models.enums import (
     JobStatus,
     RemoteType,
     SalaryPeriod,
+    SyncMode,
+    SyncRunStatus,
+    SyncTrigger,
 )
 from jobs_back.models.job import Job
+from jobs_back.models.sync_run import SyncRun
 
 __all__ = [
     "EmploymentType",
@@ -14,4 +18,8 @@ __all__ = [
     "JobStatus",
     "RemoteType",
     "SalaryPeriod",
+    "SyncMode",
+    "SyncRun",
+    "SyncRunStatus",
+    "SyncTrigger",
 ]

@@ -32,3 +32,18 @@ class SalaryPeriod(StrEnum):
 class JobStatus(StrEnum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class SyncMode(StrEnum):
+    FULL_SNAPSHOT = "full_snapshot"
+    INCREMENTAL = "incremental"
+
+
+class SyncRunStatus(StrEnum):
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class SyncTrigger(StrEnum):
+    MANUAL = "manual"

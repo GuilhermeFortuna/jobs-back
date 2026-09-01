@@ -61,3 +61,29 @@ def db_session(engine: Engine) -> Generator[Session, None, None]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+
+
+@pytest.fixture
+def committed_engine(database_url: str) -> Generator[Engine, None, None]:
+    """Engine that commits changes (for lock contention and CLI subprocess tests)."""
+    eng = create_engine(database_url, pool_pre_ping=True)
+    alembic_cfg = Config(os.path.join(REPO_ROOT, "alembic.ini"))
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(alembic_cfg, "head")
+    yield eng
+    eng.dispose()
+
+
+@pytest.fixture
+def committed_session(committed_engine: Engine) -> Generator[Session, None, None]:
+    SessionLocal = sessionmaker(
+        bind=committed_engine,
+        autocommit=False,
+        autoflush=False,
+    )
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    finally:
+        session.close()

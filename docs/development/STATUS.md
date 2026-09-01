@@ -23,7 +23,7 @@ deduplication.
 | ID | Batch | Status | Depends on | Deliverable |
 | --- | --- | --- | --- | --- |
 | [JE-001](specs/JE-001-normalized-job-model.md) / [Plan](plans/JE-001-normalized-job-model.md) | 01 | `DONE` | None | Normalized PostgreSQL job model, validation, migration, and lifecycle fields |
-| [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `READY` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
+| [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `DONE` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
 | [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md) | 01 | `READY` | JE-001 | Filtered and deterministically sorted job list and detail API |
 
 ## Current implementation order

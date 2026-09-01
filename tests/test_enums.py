@@ -5,6 +5,9 @@ from jobs_back.models.enums import (
     JobStatus,
     RemoteType,
     SalaryPeriod,
+    SyncMode,
+    SyncRunStatus,
+    SyncTrigger,
 )
 
 
@@ -42,6 +45,22 @@ def test_salary_period_values() -> None:
 
 def test_job_status_values() -> None:
     assert {m.value for m in JobStatus} == {"active", "inactive"}
+
+
+def test_sync_mode_values() -> None:
+    assert {m.value for m in SyncMode} == {"full_snapshot", "incremental"}
+
+
+def test_sync_run_status_values() -> None:
+    assert {m.value for m in SyncRunStatus} == {
+        "running",
+        "succeeded",
+        "failed",
+    }
+
+
+def test_sync_trigger_values() -> None:
+    assert {m.value for m in SyncTrigger} == {"manual"}
 
 
 def test_enums_are_strings() -> None:
