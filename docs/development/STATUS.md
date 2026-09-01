@@ -36,6 +36,16 @@ Consolidation adds fields to saved snapshots only; provider catalogs, search
 indexes, and result pages remain unpersisted under ADR-001. Scheduling,
 authentication, and AI features stay deferred.
 
+**04 — Relevance ranking and wider coverage.** Profile skills as durable intent,
+a deterministic skill- and query-aware relevance engine with index-side query and
+location filtering, provider configuration separating credentialed from key-less
+adapters, and three new providers: Adzuna, Remotive, and We Work Remotely.
+Governed by
+[ADR-002](decisions/ADR-002-skill-based-relevance-and-provider-credentials.md),
+which extends ADR-001 rather than superseding it. Ranking ships before coverage
+so added volume arrives into a working sort. Skills rank but never exclude.
+Semantic search, AI ranking, authentication, and scheduling stay deferred.
+
 ## Tasks
 
 
@@ -50,6 +60,11 @@ authentication, and AI features stay deferred.
 | [JE-007](specs/JE-007-multi-provider-search-fan-in.md) / [Plan](plans/JE-007-multi-provider-search-fan-in.md)                     | 03    | `DONE` | JE-005         | Provider registry and concurrent multi-provider fan-in with RemoteOK and Jobicy adapters   |
 | [JE-008](specs/JE-008-cross-provider-duplicate-consolidation.md) / [Plan](plans/JE-008-cross-provider-duplicate-consolidation.md) | 03    | `DONE` | JE-007         | Deterministic cross-provider duplicate consolidation in memory and in the personal library |
 | [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)               | 03    | `DONE` | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace     |
+| [JE-010](specs/JE-010-profile-skills.md) / [Plan](plans/JE-010-profile-skills.md) | 04 | `READY` | JE-004 | Profile skills column, contract, shared normalizer, and search-cache invalidation |
+| [JE-011](specs/JE-011-relevance-ranking-engine.md) / [Plan](plans/JE-011-relevance-ranking-engine.md) | 04 | `BLOCKED` | JE-010 | Deterministic skill- and query-aware relevance scoring, match reporting, and location filter |
+| [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `BLOCKED` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
+| [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `BLOCKED` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
+| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `BLOCKED` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -57,15 +72,22 @@ completion criteria pass.
 
 JE-009 is complete on branch `JE-009-multi-source-discovery-frontend`.
 
+JE-011, JE-012, JE-013, and JE-014 are `BLOCKED` only on the Batch 04
+predecessors named in their `Depends on` column, not on any external condition.
+Each becomes `READY` when its dependencies reach `DONE`.
+
 ## Current implementation order
 
-1. Batch 02 frontend (JE-006) is complete against the final JE-004/005 contracts.
-2. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
-  skip markers referencing ADR-001; JE-004 PostgreSQL tests cover the active
-   Batch 02 profile/library contract.
-3. Batch 03 runs strictly in order: JE-007 fan-in, then JE-008 consolidation,
-  then JE-009 frontend. JE-007 and JE-008 are `jobs-back`; JE-009 is
-   `jobs-front`.
+1. Batches 01 through 03 are complete. Batch 01 catalog runtime tests live under
+   `tests/historical/` with explicit skip markers referencing ADR-001; JE-004
+   PostgreSQL tests cover the active profile/library contract.
+2. Batch 04 runs strictly in order: JE-010 skills, then JE-011 relevance, then
+   JE-012 provider configuration with Adzuna, then JE-013 Remotive and We Work
+   Remotely. JE-010 through JE-013 are `jobs-back`; JE-014 is `jobs-front`.
+3. JE-014 may proceed on structure once the JE-011 and JE-012 contracts are
+   final, and must align with them before completion.
+4. JE-010 and JE-011 share one normalization module. JE-010 lands it; JE-011
+   extends it. A second normalizer is a defect in either task.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
 row must name its dependency or explain its external blocker directly below the
@@ -74,6 +96,7 @@ table.
 ## Deferred batches
 
 - Scheduled ingestion and operational sync APIs
+- Skill suggestions, autocomplete, and inferred or resume-derived skills
 - Distributed or multi-instance search-index coordination
 - Authentication, sharing, and collaborative application tracking
 - AI analysis, semantic search, resume matching, and application automation
