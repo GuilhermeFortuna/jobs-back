@@ -1,4 +1,3 @@
-# Python
 .venv/
 __pycache__/
 *.py[cod]
@@ -12,17 +11,14 @@ build/
 .mypy_cache/
 .coverage
 htmlcov/
-
-# Env
 .env
-.env.local
-dev-stack/.env
-
-# IDE / OS
+.env.*
+!.env.example
+.git/
+.gitignore
 .idea/
 .vscode/
 *.swp
 .DS_Store
-
-# Alembic (keep versions/, ignore local scratch)
 *.db
+dev-stack/.env
