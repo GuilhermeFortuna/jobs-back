@@ -4,27 +4,33 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from jobs_back.api.searches import get_manager
-from jobs_back.providers.registry import provider_display_name
+from jobs_back.config import Settings, get_settings
+from jobs_back.providers.registry import (
+    KNOWN_KEYS,
+    provider_display_name,
+    resolve_all_provider_states,
+)
 from jobs_back.schemas.discovery import ProviderDescriptor
-from jobs_back.search.live import LiveSearchManager
 
 router = APIRouter(tags=["providers"])
 
 
 @router.get("/providers", response_model=list[ProviderDescriptor])
 def list_providers(
-    manager: Annotated[LiveSearchManager, Depends(get_manager)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[ProviderDescriptor]:
-    """Providers a search will actually fan into.
+    """Every known provider and whether it will participate in search.
 
-    Sourced from the live adapters rather than from configuration, so a client
-    can never offer a filter for a provider the manager will not query.
+    Enabled providers match the live adapters the manager holds. Unconfigured
+    and disabled providers are reported from the resolved registry view with no
+    credential detail.
     """
+    states = resolve_all_provider_states(settings)
     return [
         ProviderDescriptor(
-            key=provider.key,
-            display_name=provider_display_name(provider.key),
+            key=key,
+            display_name=provider_display_name(key),
+            state=states[key],
         )
-        for provider in manager.providers
+        for key in KNOWN_KEYS
     ]

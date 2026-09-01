@@ -62,9 +62,9 @@ Semantic search, AI ranking, authentication, and scheduling stay deferred.
 | [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)               | 03    | `DONE` | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace     |
 | [JE-010](specs/JE-010-profile-skills.md) / [Plan](plans/JE-010-profile-skills.md) | 04 | `DONE` | JE-004 | Profile skills column, contract, shared normalizer, and search-cache invalidation |
 | [JE-011](specs/JE-011-relevance-ranking-engine.md) / [Plan](plans/JE-011-relevance-ranking-engine.md) | 04 | `DONE` | JE-010 | Deterministic skill- and query-aware relevance scoring, match reporting, and location filter |
-| [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `READY` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
-| [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `BLOCKED` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
-| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `BLOCKED` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
+| [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `DONE` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
+| [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `READY` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
+| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `READY` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -76,9 +76,10 @@ JE-010 is complete on branch `JE-010-profile-skills`.
 
 JE-011 is complete on branch `JE-011-relevance-ranking-engine`.
 
-JE-013 and JE-014 are `BLOCKED` only on the Batch 04
-predecessors named in their `Depends on` column, not on any external condition.
-Each becomes `READY` when its dependencies reach `DONE`.
+JE-012 is complete on branch `JE-012-provider-configuration-adzuna`.
+
+JE-014 becomes `READY` when its dependencies reach `DONE`. Each blocked row
+names its dependency or explains its external blocker directly below the table.
 
 ## Current implementation order
 

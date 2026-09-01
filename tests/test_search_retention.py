@@ -70,6 +70,16 @@ def test_explicit_budget_overrides_are_respected() -> None:
     assert settings.effective_search_max_states(3) == 7
 
 
+def test_unconfigured_adzuna_does_not_inflate_budget() -> None:
+    from jobs_back.providers.registry import enabled_provider_count
+
+    settings = Settings(provider_config_json="{}")
+    assert enabled_provider_count(settings) == 3
+    assert settings.effective_search_max_items(enabled_provider_count(settings)) == (
+        settings.effective_search_max_items(3)
+    )
+
+
 @pytest.mark.asyncio
 async def test_warm_index_not_evicted_by_fan_in_volume() -> None:
     providers = [

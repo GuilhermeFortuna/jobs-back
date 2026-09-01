@@ -53,6 +53,14 @@ class Settings(BaseSettings):
         default=20.0,
         alias="HIMALAYAS_TIMEOUT_SECONDS",
     )
+    adzuna_app_id: str = Field(default="", alias="ADZUNA_APP_ID")
+    adzuna_app_key: str = Field(default="", alias="ADZUNA_APP_KEY")
+    adzuna_default_country: str = Field(default="gb", alias="ADZUNA_DEFAULT_COUNTRY")
+    adzuna_concurrency: int = Field(default=8, alias="ADZUNA_CONCURRENCY")
+    adzuna_timeout_seconds: float = Field(
+        default=20.0,
+        alias="ADZUNA_TIMEOUT_SECONDS",
+    )
 
     @field_validator("provider_config_json", mode="before")
     @classmethod

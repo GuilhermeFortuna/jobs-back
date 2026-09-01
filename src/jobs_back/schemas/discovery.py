@@ -139,10 +139,11 @@ class ProviderSearchStatus(BaseModel):
 
 
 class ProviderDescriptor(BaseModel):
-    """An enabled provider a search will fan into."""
+    """A known provider and whether it participates in search."""
 
     key: str
     display_name: str
+    state: Literal["enabled", "unconfigured", "disabled"]
 
 
 class SearchPage(BaseModel):
