@@ -26,14 +26,36 @@ deduplication.
 | [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `DONE` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
 | [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md) | 01 | `DONE` | JE-001 | Filtered and deterministically sorted job list and detail API |
 
+Batch 01 remains `DONE` as reviewed history. Its catalog-persistence runtime is
+superseded by [ADR-001](decisions/ADR-001-personal-library-live-search.md); this
+does not retroactively change its completion status.
+
+**Batch 02 — Personalized live job search.** Reorients the product around trusted
+profiles, live provider results, and durable saved/applied snapshots only.
+
+| ID | Batch | Status | Depends on | Deliverable |
+| --- | --- | --- | --- | --- |
+| [JE-004](specs/JE-004-trusted-profiles-personal-library.md) / [Plan](plans/JE-004-trusted-profiles-personal-library.md) | 02 | `DONE` | None | Trusted profiles, default preferences, and isolated saved/applied snapshots |
+| [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md) | 02 | `IN PROGRESS` | JE-004 | Per-profile progressive in-memory search and hardened Himalayas adapter |
+| [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md) | 02 | `IN PROGRESS` | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace |
+
+All three Batch 02 rows are `IN PROGRESS` because partial implementation already
+exists. The paired Plans contain reuse ledgers so worker agents finish that work
+instead of rebuilding it. None may move to `DONE` until its own acceptance and
+completion criteria pass.
+
 ## Current implementation order
 
-1. Implement JE-001 and mark it `DONE` only after its migration, PostgreSQL
-   tests, and completion criteria pass.
-2. Once JE-001 is done, JE-002 and JE-003 become `READY`. They may be implemented
-   in parallel because the search read path does not depend on ingestion code.
-3. Mark each pair `IN PROGRESS` when implementation begins and `DONE` only after
-   all completion criteria in its Plan pass.
+1. Finish JE-004's schema transition, authoritative snapshot path, isolation,
+   and tests first because JE-005 and JE-006 consume its contract.
+2. Harden JE-005's existing search manager and Himalayas adapter against the
+   stable JE-004 profile/snapshot boundary.
+3. JE-006 may continue structural, accessibility, and mock-driven UI work while
+   JE-004/005 finish, then must update its API client and run full journeys
+   against their final contracts.
+4. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
+   skip markers referencing ADR-001; JE-004 PostgreSQL tests cover the active
+   Batch 02 profile/library contract.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
 row must name its dependency or explain its external blocker directly below the
@@ -41,9 +63,9 @@ table.
 
 ## Deferred batches
 
-- Concrete provider selection and adapters, including current API and terms
-  verification
 - Scheduled ingestion and operational sync APIs
 - Cross-provider duplicate detection and consolidation
-- Frontend job discovery, filtering, results, and detail views
+- Additional live providers beyond Himalayas
+- Distributed or multi-instance search-index coordination
+- Authentication, sharing, and collaborative application tracking
 - AI analysis, semantic search, resume matching, and application automation

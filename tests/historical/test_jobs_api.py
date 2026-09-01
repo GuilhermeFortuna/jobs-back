@@ -19,6 +19,9 @@ from jobs_back.models.enums import (
 )
 from jobs_back.search.constants import JOB_SEARCH_VECTOR_SQL
 from tests.helpers.jobs import make_job
+from tests.historical._markers import BATCH01_SUPERSEDED
+
+pytestmark = BATCH01_SUPERSEDED
 
 T0 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 T1 = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)

@@ -19,9 +19,13 @@ from jobs_back.ingestion.service import (
     SyncRunFailure,
     SyncRunSuccess,
 )
-from jobs_back.models import Job, SyncRun
 from jobs_back.models.enums import JobStatus, SyncMode, SyncRunStatus
+from jobs_back.models.job import Job
+from jobs_back.models.sync_run import SyncRun
 from tests.helpers.fake_adapters import make_job_input, register_fake_adapter
+from tests.historical._markers import BATCH01_SUPERSEDED
+
+pytestmark = BATCH01_SUPERSEDED
 
 
 @pytest.fixture(autouse=True)

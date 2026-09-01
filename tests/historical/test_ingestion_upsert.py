@@ -11,9 +11,12 @@ from sqlalchemy.orm import Session
 
 from jobs_back.ingestion.exceptions import AdapterRecordValidationError
 from jobs_back.ingestion.upsert import apply_jobs
-from jobs_back.models import Job
 from jobs_back.models.enums import JobStatus, SyncMode
+from jobs_back.models.job import Job
 from tests.helpers.fake_adapters import make_job_input
+from tests.historical._markers import BATCH01_SUPERSEDED
+
+pytestmark = BATCH01_SUPERSEDED
 
 
 def _seed_job(

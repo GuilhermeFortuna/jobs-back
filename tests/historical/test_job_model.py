@@ -9,9 +9,12 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from jobs_back.models import Job
 from jobs_back.models.enums import JobStatus, SalaryPeriod
+from jobs_back.models.job import Job
 from tests.helpers.jobs import make_job as _job
+from tests.historical._markers import BATCH01_SUPERSEDED
+
+pytestmark = BATCH01_SUPERSEDED
 
 
 def test_round_trip_minimal_job(db_session: Session) -> None:

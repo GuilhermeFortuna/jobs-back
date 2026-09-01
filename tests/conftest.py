@@ -4,18 +4,29 @@ from __future__ import annotations
 
 import os
 from collections.abc import Generator
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.util.exc import CommandError
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from jobs_back.api.searches import get_manager
 from jobs_back.config import get_settings
 from jobs_back.db import get_db
 from jobs_back.main import create_app
+from jobs_back.schemas.discovery import JobResult, SearchFilters
+from jobs_back.search.live import LiveSearchManager, SearchState
+
+
+class _NoOpProvider:
+    async def close(self) -> None:
+        return None
+
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -60,14 +71,18 @@ def engine(database_url: str) -> Generator[Engine, None, None]:
 
     alembic_cfg = Config(os.path.join(REPO_ROOT, "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
-    # Ensure a clean schema for the session, then upgrade to head.
-    command.downgrade(alembic_cfg, "base")
-    command.upgrade(alembic_cfg, "head")
+    try:
+        command.upgrade(alembic_cfg, "head")
+    except CommandError:
+        with eng.begin() as connection:
+            connection.execute(text("DELETE FROM jobs"))
+        command.upgrade(alembic_cfg, "head")
+    with eng.begin() as connection:
+        connection.execute(text("TRUNCATE TABLE saved_jobs, profiles RESTART IDENTITY"))
 
     try:
         yield eng
     finally:
-        command.downgrade(alembic_cfg, "base")
         eng.dispose()
 
 
@@ -97,7 +112,7 @@ def committed_engine(database_url: str) -> Generator[Engine, None, None]:
         yield eng
     finally:
         with eng.begin() as connection:
-            connection.execute(text("TRUNCATE TABLE sync_runs, jobs"))
+            connection.execute(text("TRUNCATE TABLE saved_jobs, profiles"))
         eng.dispose()
 
 
@@ -126,4 +141,49 @@ def api_client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as client:
         yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def search_manager() -> LiveSearchManager:
+    return LiveSearchManager(provider=_NoOpProvider())  # type: ignore[arg-type]
+
+
+def seed_search(
+    manager: LiveSearchManager,
+    profile_id: UUID,
+    items: list[JobResult],
+    *,
+    search_id: UUID | None = None,
+) -> UUID:
+    sid = search_id or uuid4()
+    state = SearchState(
+        id=sid,
+        profile_id=profile_id,
+        filters=SearchFilters(),
+        status="complete",
+        progress=1,
+        items=items,
+    )
+    manager.states[sid] = state
+    return sid
+
+
+@pytest.fixture
+def api_client_with_search(
+    db_session: Session,
+    search_manager: LiveSearchManager,
+) -> Generator[tuple[TestClient, LiveSearchManager], None, None]:
+    app = create_app()
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield db_session
+
+    def override_get_manager() -> LiveSearchManager:
+        return search_manager
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_manager] = override_get_manager
+    with TestClient(app) as client:
+        yield client, search_manager
     app.dependency_overrides.clear()

@@ -5,8 +5,8 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from jobs_back.models import Job
 from jobs_back.models.enums import EmploymentType, JobStatus, RemoteType
+from jobs_back.models.job import Job
 
 
 def make_job(**overrides: object) -> Job:

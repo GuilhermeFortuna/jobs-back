@@ -24,8 +24,11 @@ from tests.helpers.fake_adapters import (
     make_job_input,
     register_fake_adapter,
 )
+from tests.historical._markers import BATCH01_SUPERSEDED
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+pytestmark = BATCH01_SUPERSEDED
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(autouse=True)
