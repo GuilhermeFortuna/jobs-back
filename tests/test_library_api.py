@@ -466,3 +466,60 @@ def test_library_and_search_responses_include_alternate_sources(
         },
     )
     assert saved.json()["alternate_sources"] == []
+
+
+def test_duplicate_save_from_a_separate_search_keeps_every_source(
+    api_client_with_search: tuple[TestClient, object],
+) -> None:
+    """Sources found in different searches must all survive (JE-008 AC 6)."""
+    client, manager = api_client_with_search
+    profile_id = _create_profile(client, "CrossSearchDedup")
+    himalayas = make_job_result(
+        provider="himalayas",
+        provider_job_id="h-1",
+        company="Acme Corp, Inc.",
+        title="Senior Python Developer",
+        job_url="https://himalayas.app/jobs/1",
+        apply_url="https://himalayas.app/jobs/1/apply",
+    )
+    remoteok = make_job_result(
+        provider="remoteok",
+        provider_job_id="r-1",
+        company="ACME CORP",
+        title="Senior Python Developer",
+        job_url="https://remoteok.com/jobs/1",
+        apply_url="https://remoteok.com/jobs/1/apply",
+    )
+    first_search = seed_search(manager, uuid.UUID(profile_id), [himalayas])
+    second_search = seed_search(manager, uuid.UUID(profile_id), [remoteok])
+
+    client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(first_search),
+            "provider": "himalayas",
+            "provider_job_id": "h-1",
+            "state": "saved",
+        },
+    )
+    second = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(second_search),
+            "provider": "remoteok",
+            "provider_job_id": "r-1",
+            "state": "saved",
+        },
+    )
+
+    assert second.status_code == 200
+    body = second.json()
+    reachable = {body["provider"]} | {
+        source["provider"] for source in body["alternate_sources"]
+    }
+    assert reachable == {"himalayas", "remoteok"}
+    urls = {body["job_url"]} | {
+        source["job_url"] for source in body["alternate_sources"]
+    }
+    assert "https://himalayas.app/jobs/1" in urls
+    assert len(client.get(f"/profiles/{profile_id}/jobs").json()) == 1

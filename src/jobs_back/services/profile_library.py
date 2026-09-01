@@ -26,7 +26,10 @@ from jobs_back.services.exceptions import (
     DuplicateProfileNameError,
     NotFoundError,
 )
-from jobs_back.services.library_dedup import alternate_sources_payload
+from jobs_back.services.library_dedup import (
+    alternate_sources_payload,
+    merged_alternate_sources,
+)
 
 _DUPLICATE_PROFILE_NAME = "A profile with that name already exists"
 
@@ -194,8 +197,19 @@ def _merge_into_existing_by_dedup(
     *,
     now: datetime,
 ) -> SavedJob:
+    previous_identity = {
+        "provider": existing.provider,
+        "provider_job_id": existing.provider_job_id,
+        "job_url": existing.job_url,
+        "apply_url": existing.apply_url,
+    }
+    previous_sources = list(existing.alternate_sources or [])
     _refresh_snapshot_fields(existing, result, now=now)
-    existing.alternate_sources = alternate_sources_payload(result)
+    existing.alternate_sources = merged_alternate_sources(
+        previous_sources,
+        previous_identity,
+        result,
+    )
     session.commit()
     session.refresh(existing)
     return existing
