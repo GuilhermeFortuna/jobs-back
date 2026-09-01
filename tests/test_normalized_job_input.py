@@ -56,9 +56,7 @@ def test_provider_key_syntax(provider: str) -> None:
 
 
 def test_provider_key_allows_digits_underscore_hyphen() -> None:
-    job = NormalizedJobInput.model_validate(
-        _base_kwargs(provider="provider_1-test")
-    )
+    job = NormalizedJobInput.model_validate(_base_kwargs(provider="provider_1-test"))
     assert job.provider == "provider_1-test"
 
 
@@ -151,9 +149,7 @@ def test_salary_range_ordered() -> None:
 
 def test_posted_at_must_be_timezone_aware() -> None:
     with pytest.raises(ValidationError):
-        NormalizedJobInput.model_validate(
-            _base_kwargs(posted_at=datetime(2024, 1, 1))
-        )
+        NormalizedJobInput.model_validate(_base_kwargs(posted_at=datetime(2024, 1, 1)))
     job = NormalizedJobInput.model_validate(
         _base_kwargs(posted_at=datetime(2024, 1, 1, tzinfo=UTC))
     )
