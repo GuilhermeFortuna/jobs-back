@@ -87,7 +87,7 @@ docker volume rm jobs-dev_backend_venv jobs-dev_frontend_node_modules jobs-dev_f
 docker volume rm jobs-dev_jobs_pg_data
 ```
 
-**Stale Postgres from old compose:** The previous `jobs-back/docker-compose.yml` used the same volume name `jobs_pg_data`. Data should migrate automatically under project `jobs-dev`.
+**Stale Postgres from old compose:** The previous `jobs-back/docker-compose.yml` used project name `jobs-back` and container `jobs-back-db-1`. `dev.sh` stops that container automatically before starting. Data lives in volume `jobs-back_jobs_pg_data`; the dev stack uses `jobs-dev_jobs_pg_data`.
 
 ## Single-process live search
 

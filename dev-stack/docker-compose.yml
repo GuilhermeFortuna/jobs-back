@@ -50,6 +50,7 @@ services:
       backend:
         condition: service_healthy
     environment:
+      CI: "true"
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8000}
       WATCHPACK_POLLING: "true"
     ports:
