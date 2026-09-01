@@ -1,9 +1,9 @@
-# 003 — Job Search API Specification
+# JE-003 — Job Search API Specification
 
 ## Status
 
-Proposed for V1. Depends on the normalized model from Spec 001. Ingested data is
-produced through Spec 002, but the read API does not depend on adapter code.
+Proposed for V1. Depends on the normalized model from Spec JE-001. Ingested data
+is produced through Spec JE-002, but the read API does not depend on adapter code.
 
 ## Endpoints
 
@@ -96,7 +96,7 @@ The detail response adds `description`, `updated_at`, and `inactive_at`. It neve
 contains `raw_payload`.
 
 Dates use RFC 3339 UTC timestamps. Decimal amounts serialize as JSON numbers.
-Enums and field semantics match Spec 001 exactly.
+Enums and field semantics match Spec JE-001 exactly.
 
 ## Validation and errors
 
@@ -130,4 +130,3 @@ CORS configuration and add no authentication behavior.
 6. Lists exclude inactive jobs while detail lookup can return them.
 7. Invalid input produces `422`, unknown valid UUIDs produce `404`, and neither
    endpoint exposes raw provider payloads.
-

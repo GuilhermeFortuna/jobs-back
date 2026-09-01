@@ -22,16 +22,16 @@ deduplication.
 
 | ID | Batch | Status | Depends on | Deliverable |
 | --- | --- | --- | --- | --- |
-| [001](specs/001-normalized-job-model.md) / [Plan](plans/001-normalized-job-model.md) | 01 | `READY` | None | Normalized PostgreSQL job model, validation, migration, and lifecycle fields |
-| [002](specs/002-provider-ingestion.md) / [Plan](plans/002-provider-ingestion.md) | 01 | `BLOCKED` | 001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
-| [003](specs/003-job-search-api.md) / [Plan](plans/003-job-search-api.md) | 01 | `BLOCKED` | 001 | Filtered and deterministically sorted job list and detail API |
+| [JE-001](specs/JE-001-normalized-job-model.md) / [Plan](plans/JE-001-normalized-job-model.md) | 01 | `DONE` | None | Normalized PostgreSQL job model, validation, migration, and lifecycle fields |
+| [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `READY` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
+| [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md) | 01 | `READY` | JE-001 | Filtered and deterministically sorted job list and detail API |
 
 ## Current implementation order
 
-1. Implement 001 and mark it `DONE` only after its migration, PostgreSQL tests,
-   and completion criteria pass.
-2. Once 001 is done, 002 and 003 become `READY`. They may be implemented in
-   parallel because the search read path does not depend on ingestion code.
+1. Implement JE-001 and mark it `DONE` only after its migration, PostgreSQL
+   tests, and completion criteria pass.
+2. Once JE-001 is done, JE-002 and JE-003 become `READY`. They may be implemented
+   in parallel because the search read path does not depend on ingestion code.
 3. Mark each pair `IN PROGRESS` when implementation begins and `DONE` only after
    all completion criteria in its Plan pass.
 
@@ -47,4 +47,3 @@ table.
 - Cross-provider duplicate detection and consolidation
 - Frontend job discovery, filtering, results, and detail views
 - AI analysis, semantic search, resume matching, and application automation
-

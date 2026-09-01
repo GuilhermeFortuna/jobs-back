@@ -1,7 +1,8 @@
-# 003 — Job Search API Implementation Plan
+# JE-003 — Job Search API Implementation Plan
 
-Implements [`003-job-search-api.md`](../specs/003-job-search-api.md) after Plan
-001. Plan 002 supplies production data later but is not a code dependency of the
+Implements
+[`JE-003-job-search-api.md`](../specs/JE-003-job-search-api.md) after Plan JE-001.
+Plan JE-002 supplies production data later but is not a code dependency of the
 read path.
 
 ## Approach
@@ -17,7 +18,7 @@ separate so filter semantics can be unit- and integration-tested independently.
    must use the identical expression so PostgreSQL can use the index.
 2. Add supporting B-tree indexes only where query plans demonstrate value,
    starting with status/provider, status/remote type, status/employment type,
-   status/posting time, and currency/annual salary fields from Plan 001.
+   status/posting time, and currency/annual salary fields from Plan JE-001.
 3. Use `websearch_to_tsquery` for `q` and parameterized SQLAlchemy expressions
    for every filter. Do not interpolate query values or sort expressions.
 4. Use one filtered count query and one bounded item query. Normalize repeated
@@ -85,4 +86,3 @@ server modules.
 - Migration upgrade/downgrade, `./ci.sh lint`, and `./ci.sh test` pass.
 - No frontend, facet, authentication, provider-fetch, or cross-provider dedup
   behavior is added.
-

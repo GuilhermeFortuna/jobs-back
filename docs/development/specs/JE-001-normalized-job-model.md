@@ -1,4 +1,4 @@
-# 001 — Normalized Job Model Specification
+# JE-001 — Normalized Job Model Specification
 
 ## Status
 
@@ -133,4 +133,3 @@ stable public identifiers and source history.
 6. A job can transition active → inactive → active without changing `id` or
    `discovered_at`.
 7. Raw payloads are stored internally but are absent from public job schemas.
-

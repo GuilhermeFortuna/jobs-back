@@ -1,7 +1,7 @@
-# 001 — Normalized Job Model Implementation Plan
+# JE-001 — Normalized Job Model Implementation Plan
 
 Implements
-[`001-normalized-job-model.md`](../specs/001-normalized-job-model.md).
+[`JE-001-normalized-job-model.md`](../specs/JE-001-normalized-job-model.md).
 
 ## Approach
 
@@ -82,4 +82,3 @@ before enabling database integration tests in `./ci.sh`.
   clean database.
 - Downgrading the new revision removes only objects introduced by this Plan.
 - No source-provider, deduplication, or API route behavior is introduced.
-

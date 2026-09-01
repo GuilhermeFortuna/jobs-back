@@ -1,7 +1,8 @@
-# 002 — Provider Ingestion Implementation Plan
+# JE-002 — Provider Ingestion Implementation Plan
 
 Implements
-[`002-provider-ingestion.md`](../specs/002-provider-ingestion.md) after Plan 001.
+[`JE-002-provider-ingestion.md`](../specs/JE-002-provider-ingestion.md) after Plan
+JE-001.
 
 ## Approach
 
@@ -90,7 +91,7 @@ foundation accidentally.
   not invent automatic recovery until scheduling is designed.
 
 All persistence and advisory-lock tests run against PostgreSQL 16 using the CI
-service introduced by Plan 001.
+service introduced by Plan JE-001.
 
 ## Completion criteria
 

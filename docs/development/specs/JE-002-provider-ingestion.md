@@ -1,8 +1,8 @@
-# 002 — Provider Ingestion Specification
+# JE-002 — Provider Ingestion Specification
 
 ## Status
 
-Proposed for V1. Depends on the normalized model defined by Spec 001.
+Proposed for V1. Depends on the normalized model defined by Spec JE-001.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Each adapter exposes:
 - a stable `provider_key` matching the job model's provider-key rules;
 - a `sync_mode` of `full_snapshot` or `incremental`;
 - an asynchronous job iterator that owns upstream pagination and yields validated
-  normalized job inputs from Spec 001.
+  normalized job inputs from Spec JE-001.
 
 The registry maps one key to one adapter factory and rejects duplicate keys.
 Selecting an unknown or unconfigured provider fails before a sync run starts.
