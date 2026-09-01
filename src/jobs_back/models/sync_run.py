@@ -62,8 +62,7 @@ class SyncRun(Base):
         Index(
             "ix_sync_runs_provider_started_at",
             "provider",
-            "started_at",
-            postgresql_ops={"started_at": "DESC"},
+            text("started_at DESC"),
         ),
     )
 

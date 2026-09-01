@@ -65,6 +65,11 @@ class AdapterRecordValidationError(IngestionError):
     operator_message = "Provider returned a malformed job record."
 
 
+class AdapterProviderMismatchError(IngestionError):
+    error_code = "adapter_provider_mismatch"
+    operator_message = "Provider adapter returned an inconsistent provider identity."
+
+
 class DuplicateIdentityError(IngestionError):
     error_code = "duplicate_provider_identity"
     operator_message = "Provider result contains duplicate job identities."
@@ -90,6 +95,7 @@ def sanitize_error(exc: BaseException) -> tuple[str, str]:
 __all__ = [
     "AdapterAuthenticationError",
     "AdapterConfigurationError",
+    "AdapterProviderMismatchError",
     "AdapterRateLimitError",
     "AdapterRecordValidationError",
     "AdapterSchemaError",

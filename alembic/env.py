@@ -14,6 +14,22 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# PostgreSQL normalizes the full-text expression with implicit casts, which makes
+# Alembic report a false expression change. Revision 003 remains authoritative for
+# this one migration-managed index; every ordinary index is still compared.
+_MIGRATION_MANAGED_INDEXES = {"ix_jobs_search_vector"}
+
+
+def include_object(
+    _object: object,
+    name: str | None,
+    type_: str,
+    _reflected: bool,
+    _compare_to: object | None,
+) -> bool:
+    return not (type_ == "index" and name in _MIGRATION_MANAGED_INDEXES)
+
+
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 
@@ -25,6 +41,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -40,7 +57,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

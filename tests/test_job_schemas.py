@@ -1,5 +1,6 @@
 """Unit tests for public JobSummary / JobDetail schemas."""
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
@@ -69,3 +70,18 @@ def test_job_summary_rejects_raw_payload_field() -> None:
     )
     assert "raw_payload" not in summary.model_dump()
     assert "raw_payload" not in JobSummary.model_fields
+
+
+def test_job_summary_serializes_salary_amounts_as_json_numbers() -> None:
+    summary = JobSummary.model_validate(_summary_kwargs())
+    payload = json.loads(summary.model_dump_json())
+
+    for field in (
+        "salary_min",
+        "salary_max",
+        "salary_min_annual",
+        "salary_max_annual",
+    ):
+        assert isinstance(payload[field], int | float), (
+            f"{field} must be a JSON number, got {type(payload[field]).__name__}"
+        )

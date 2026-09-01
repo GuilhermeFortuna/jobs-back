@@ -10,9 +10,10 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from jobs_back.config import get_settings
 from jobs_back.db import get_db
 from jobs_back.main import create_app
 
@@ -20,20 +21,35 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 def _database_url() -> str | None:
-    return os.environ.get("DATABASE_URL") or os.environ.get("TEST_DATABASE_URL")
+    return os.environ.get("TEST_DATABASE_URL")
 
 
 @pytest.fixture(scope="session")
-def database_url() -> str:
+def database_url() -> Generator[str, None, None]:
     url = _database_url()
     if not url:
-        pytest.skip(
-            "DATABASE_URL or TEST_DATABASE_URL is required "
-            "for PostgreSQL integration tests"
+        pytest.fail(
+            "TEST_DATABASE_URL is required for PostgreSQL integration tests; "
+            "the normal DATABASE_URL is never used because the test schema is reset",
         )
     if not url.startswith("postgresql"):
-        pytest.skip("Integration tests require a PostgreSQL DATABASE_URL")
-    return url
+        pytest.fail("TEST_DATABASE_URL must use PostgreSQL")
+
+    database_name = (make_url(url).database or "").lower()
+    if "test" not in database_name:
+        pytest.fail("TEST_DATABASE_URL database name must contain 'test'")
+
+    original_database_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = url
+    get_settings.cache_clear()
+    try:
+        yield url
+    finally:
+        if original_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = original_database_url
+        get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session")
@@ -48,8 +64,11 @@ def engine(database_url: str) -> Generator[Engine, None, None]:
     command.downgrade(alembic_cfg, "base")
     command.upgrade(alembic_cfg, "head")
 
-    yield eng
-    eng.dispose()
+    try:
+        yield eng
+    finally:
+        command.downgrade(alembic_cfg, "base")
+        eng.dispose()
 
 
 @pytest.fixture
@@ -74,8 +93,12 @@ def committed_engine(database_url: str) -> Generator[Engine, None, None]:
     alembic_cfg = Config(os.path.join(REPO_ROOT, "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     command.upgrade(alembic_cfg, "head")
-    yield eng
-    eng.dispose()
+    try:
+        yield eng
+    finally:
+        with eng.begin() as connection:
+            connection.execute(text("TRUNCATE TABLE sync_runs, jobs"))
+        eng.dispose()
 
 
 @pytest.fixture

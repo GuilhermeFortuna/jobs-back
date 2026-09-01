@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from jobs_back.ingestion.exceptions import AdapterRecordValidationError
 from jobs_back.models.enums import JobStatus, SyncMode
 from jobs_back.models.job import Job
 from jobs_back.schemas.job import NormalizedJobInput
@@ -38,6 +39,10 @@ def apply_jobs(
     created = updated = unchanged = reactivated = 0
 
     for job_input in jobs:
+        if job_input.provider != provider:
+            raise AdapterRecordValidationError(
+                "Adapter job provider does not match the selected provider",
+            )
         seen_ids.append(job_input.provider_job_id)
         existing = session.execute(
             select(Job).where(
@@ -57,6 +62,7 @@ def apply_jobs(
         if was_inactive:
             existing.status = JobStatus.ACTIVE.value
             existing.inactive_at = None
+            existing.updated_at = run_at
             reactivated += 1
 
         if _content_changed(existing, job_input):

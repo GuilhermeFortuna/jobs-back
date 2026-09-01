@@ -17,9 +17,31 @@ run_lint() {
   uv run ruff check src tests alembic
 }
 
+load_test_database_url() {
+  if [[ -n "${TEST_DATABASE_URL:-}" || ! -f .env ]]; then
+    return
+  fi
+
+  local configured_url
+  configured_url="$(sed -n 's/^TEST_DATABASE_URL=//p' .env | tail -n 1)"
+  configured_url="${configured_url%$'\r'}"
+  if [[ -n "${configured_url}" ]]; then
+    export TEST_DATABASE_URL="${configured_url}"
+  fi
+}
+
 run_test() {
+  load_test_database_url
+  if [[ -z "${TEST_DATABASE_URL:-}" ]]; then
+    echo "TEST_DATABASE_URL is required for the full PostgreSQL test suite." >&2
+    echo "It must point to a disposable database whose name contains 'test'." >&2
+    exit 1
+  fi
+  echo "==> schema"
+  DATABASE_URL="${TEST_DATABASE_URL}" uv run alembic upgrade head
+  DATABASE_URL="${TEST_DATABASE_URL}" uv run alembic check
   echo "==> test"
-  uv run pytest
+  DATABASE_URL="${TEST_DATABASE_URL}" uv run pytest
 }
 
 run_all() {

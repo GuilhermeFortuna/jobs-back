@@ -113,6 +113,14 @@ class Job(Base):
             "eligible_country_codes",
             postgresql_using="gin",
         ),
+        Index("ix_jobs_status_remote_type", "status", "remote_type"),
+        Index("ix_jobs_status_employment_type", "status", "employment_type"),
+        Index(
+            "ix_jobs_salary_currency_annual",
+            "salary_currency",
+            "salary_min_annual",
+            "salary_max_annual",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

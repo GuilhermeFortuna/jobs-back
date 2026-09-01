@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from jobs_back.ingestion.exceptions import DuplicateIdentityError
+from jobs_back.ingestion.exceptions import (
+    AdapterProviderMismatchError,
+    DuplicateIdentityError,
+)
 from jobs_back.ingestion.protocol import ProviderAdapter
 from jobs_back.schemas.job import NormalizedJobInput
 
@@ -14,6 +17,10 @@ async def collect_jobs(adapter: ProviderAdapter) -> list[NormalizedJobInput]:
     jobs: list[NormalizedJobInput] = []
     seen: set[tuple[str, str]] = set()
     async for job in _async_iter(adapter.iter_jobs()):
+        if job.provider != adapter.provider_key:
+            raise AdapterProviderMismatchError(
+                "Adapter job provider does not match adapter.provider_key",
+            )
         identity = (job.provider, job.provider_job_id)
         if identity in seen:
             raise DuplicateIdentityError(

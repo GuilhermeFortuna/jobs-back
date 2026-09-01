@@ -10,8 +10,9 @@ See the product north star: [docs/job-engine-v1-goal.md](docs/job-engine-v1-goal
 - FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16
 - Ruff (lint), pytest
 
-This repo includes the normalized Job model (JE-001): Alembic migration, validation,
-and compensation helpers. Provider adapters and the search API land in later Specs.
+This repo includes the JE-001 through JE-003 backend foundation: normalized job
+storage, provider-neutral ingestion, and the filtered job read API. Concrete
+provider adapters land in a later batch.
 
 ## Prerequisites
 
@@ -54,7 +55,9 @@ Set `DATABASE_URL=postgresql+psycopg://jobs:jobs@localhost:5432/jobs` in `.env` 
 
 ### CI
 
-Run the same validation as GitHub Actions (requires `uv sync --group dev` first):
+The development stack creates a disposable `jobs_test` database automatically.
+`ci.sh` reads `TEST_DATABASE_URL` from `.env`, so no shell export is required.
+Tests refuse to reset the normal `DATABASE_URL`.
 
 ```bash
 ./ci.sh          # full suite
@@ -110,7 +113,7 @@ Port overrides: edit `dev-stack/.env` (`FRONTEND_PORT`, `BACKEND_PORT`).
 
 ## What's next
 
-- Normalized Job model and Alembic migration
-- Provider adapter interface
-- Search / filter API
+- Concrete provider adapters
+- Scheduled ingestion
+- Frontend job discovery
 - Deduplication

@@ -24,7 +24,7 @@ Or run directly from this directory:
 |---------|---------------|---------------------|----------|
 | frontend | `jobs-front/Dockerfile.dev` | 3000 | `frontend:3000` |
 | backend | `jobs-back/Dockerfile.dev` | 8000 | `backend:8000` |
-| postgres | `postgres:16` | not exposed | `postgres:5432` |
+| postgres | `postgres:16` | 5432 | `postgres:5432` |
 
 Verify:
 
@@ -43,24 +43,21 @@ Copy and edit `dev-stack/.env` (or let `dev.sh` create it on first run):
 |----------|---------|-------------|
 | `FRONTEND_PORT` | `3000` | Host port for Next.js dev server |
 | `BACKEND_PORT` | `8000` | Host port for FastAPI / uvicorn |
-| `POSTGRES_HOST_PORT` | unset | Optional — uncomment in `.env` to expose Postgres on the host |
+| `POSTGRES_HOST_PORT` | `5432` | Host port for PostgreSQL |
+| `POSTGRES_TEST_DB` | `jobs_test` | Disposable database used by backend tests |
 
 `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` are derived from these ports in `docker-compose.yml` so browser and API URLs stay aligned.
 
 ## Networking
 
 - **Backend → Postgres:** `postgresql+psycopg://jobs:jobs@postgres:5432/jobs` (Docker service name)
+- **Host tests → Postgres:** `postgresql+psycopg://jobs:jobs@localhost:5432/jobs_test`
 - **Browser → API:** `http://localhost:${BACKEND_PORT}` (`NEXT_PUBLIC_API_URL`)
 - **Browser → UI:** `http://localhost:${FRONTEND_PORT}`
 
-Postgres is internal-only by default. To connect from a host DB tool, add to `docker-compose.yml` under `postgres`:
-
-```yaml
-ports:
-  - "${POSTGRES_HOST_PORT:-5432}:5432"
-```
-
-and set `POSTGRES_HOST_PORT` in `.env`.
+Postgres is exposed so host-side CI and Git hooks can reach the isolated test
+database. Change `POSTGRES_HOST_PORT` and the matching URLs in `jobs-back/.env` if
+port 5432 is already occupied.
 
 ## Volumes
 

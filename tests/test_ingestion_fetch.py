@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from jobs_back.ingestion.exceptions import DuplicateIdentityError
+from jobs_back.ingestion.exceptions import (
+    AdapterProviderMismatchError,
+    DuplicateIdentityError,
+)
 from jobs_back.ingestion.fetch import collect_jobs
 from jobs_back.models.enums import SyncMode
 from tests.helpers.fake_adapters import FakeAdapter, make_job_input
@@ -34,4 +37,15 @@ async def test_collect_jobs_rejects_duplicate_identities() -> None:
         jobs=[duplicate, duplicate],
     )
     with pytest.raises(DuplicateIdentityError):
+        await collect_jobs(adapter)
+
+
+@pytest.mark.asyncio
+async def test_collect_jobs_rejects_mismatched_provider_identity() -> None:
+    adapter = FakeAdapter(
+        provider_key="expected",
+        sync_mode=SyncMode.FULL_SNAPSHOT,
+        jobs=[make_job_input(provider="other")],
+    )
+    with pytest.raises(AdapterProviderMismatchError):
         await collect_jobs(adapter)

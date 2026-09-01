@@ -13,6 +13,7 @@ from pydantic import (
     ConfigDict,
     HttpUrl,
     ValidationInfo,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -231,6 +232,20 @@ class JobSummary(BaseModel):
     posted_at: datetime | None = None
     discovered_at: datetime
     last_seen_at: datetime
+
+    @field_serializer(
+        "salary_min",
+        "salary_max",
+        "salary_min_annual",
+        "salary_max_annual",
+        when_used="json",
+    )
+    def serialize_salary_amount(
+        self,
+        value: Decimal | None,
+    ) -> float | None:
+        """Serialize public salary amounts as JSON numbers, per the API contract."""
+        return float(value) if value is not None else None
 
 
 class JobDetail(JobSummary):

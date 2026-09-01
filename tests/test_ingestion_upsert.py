@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from jobs_back.ingestion.exceptions import AdapterRecordValidationError
 from jobs_back.ingestion.upsert import apply_jobs
 from jobs_back.models import Job
 from jobs_back.models.enums import JobStatus, SyncMode
@@ -123,11 +125,13 @@ def test_unchanged_preserves_updated_at(db_session: Session) -> None:
 def test_reactivation_preserves_discovered_at(db_session: Session) -> None:
     run_at = datetime.now(tz=UTC)
     discovered = run_at - timedelta(days=10)
+    old_updated = run_at - timedelta(days=2)
     existing = _seed_job(
         db_session,
         provider_job_id="job-1",
         status=JobStatus.INACTIVE,
         discovered_at=discovered,
+        updated_at=old_updated,
     )
     job_input = make_job_input(provider_job_id="job-1")
     counts = apply_jobs(
@@ -142,6 +146,20 @@ def test_reactivation_preserves_discovered_at(db_session: Session) -> None:
     assert existing.status == JobStatus.ACTIVE.value
     assert existing.inactive_at is None
     assert existing.discovered_at == discovered
+    assert existing.updated_at == run_at
+
+
+def test_upsert_rejects_job_from_another_provider(db_session: Session) -> None:
+    with pytest.raises(AdapterRecordValidationError):
+        apply_jobs(
+            db_session,
+            provider="expected",
+            jobs=[make_job_input(provider="other")],
+            run_at=datetime.now(tz=UTC),
+            sync_mode=SyncMode.INCREMENTAL,
+        )
+
+    assert db_session.scalar(select(Job).where(Job.provider == "other")) is None
 
 
 def test_full_snapshot_deactivates_missing_jobs(db_session: Session) -> None:
