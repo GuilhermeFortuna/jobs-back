@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import jobs_back.models  # noqa: F401 — register models on Base.metadata
 from jobs_back.config import get_settings
 from jobs_back.db import Base
 

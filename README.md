@@ -10,7 +10,8 @@ See the product north star: [docs/job-engine-v1-goal.md](docs/job-engine-v1-goal
 - FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16
 - Ruff (lint), pytest
 
-This repo is scaffold-only so far: health endpoint, DB wiring, and migrations tooling — no Job model or provider adapters yet.
+This repo includes the normalized Job model (JE-001): Alembic migration, validation,
+and compensation helpers. Provider adapters and the search API land in later Specs.
 
 ## Prerequisites
 
@@ -84,10 +85,17 @@ uv run pre-commit run --hook-stage pre-push --all-files
 
 ### Migrations
 
-Alembic is configured against `Base.metadata` and `DATABASE_URL`. There are no domain models yet; create the first revision when the Job schema lands:
+Alembic is configured against `Base.metadata` and `DATABASE_URL`. Apply the latest
+revision (includes the `jobs` table from JE-001):
 
 ```bash
-uv run alembic revision --autogenerate -m "add jobs"
+uv run alembic upgrade head
+```
+
+Create a new revision after model changes:
+
+```bash
+uv run alembic revision --autogenerate -m "describe change"
 uv run alembic upgrade head
 ```
 

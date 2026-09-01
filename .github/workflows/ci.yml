@@ -8,6 +8,25 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jobs
+          POSTGRES_PASSWORD: jobs
+          POSTGRES_DB: jobs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobs -d jobs"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://jobs:jobs@localhost:5432/jobs
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --group dev
+
+      - name: Run migrations
+        run: uv run alembic upgrade head
 
       - name: Run CI
         run: ./ci.sh
