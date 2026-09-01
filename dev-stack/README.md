@@ -88,3 +88,11 @@ docker volume rm jobs-dev_jobs_pg_data
 ```
 
 **Stale Postgres from old compose:** The previous `jobs-back/docker-compose.yml` used the same volume name `jobs_pg_data`. Data should migrate automatically under project `jobs-dev`.
+
+## Single-process live search
+
+The backend keeps progressive search state **in memory in one process**. Use a
+single Uvicorn worker for local dev and production until distributed search is
+implemented. Multiple workers or replicas will not share search IDs. See
+[`jobs-back/README.md`](../README.md#live-search-je-005) for `SEARCH_*` and
+Himalayas env vars.

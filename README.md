@@ -111,6 +111,21 @@ With [jobs-front](../jobs-front) alongside this repo:
 
 Port overrides: edit `dev-stack/.env` (`FRONTEND_PORT`, `BACKEND_PORT`).
 
+## Live search (JE-005)
+
+Progressive provider search runs **in memory inside one backend process**. Search
+IDs and warm indexes are not shared across Uvicorn workers or replicas. Run a
+**single worker** in production until distributed search coordination exists.
+
+Relevant env vars (see [`.env.example`](.env.example)):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SEARCH_STATE_TTL_MINUTES` | `60` | Evict completed searches after this age |
+| `SEARCH_MAX_STATES` | `200` | Cap total in-memory search states |
+| `SEARCH_MAX_ITEMS` | `100000` | Cap approximate items held across states |
+| `HIMALAYAS_CONCURRENCY` | `12` | Bounded upstream page workers |
+
 ## What's next
 
 - Concrete provider adapters

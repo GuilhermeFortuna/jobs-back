@@ -22,6 +22,18 @@ class Settings(BaseSettings):
         alias="CORS_ORIGINS",
     )
     provider_config_json: str = Field(default="{}", alias="PROVIDER_CONFIG_JSON")
+    search_state_ttl_minutes: int = Field(default=60, alias="SEARCH_STATE_TTL_MINUTES")
+    search_max_states: int = Field(default=200, alias="SEARCH_MAX_STATES")
+    search_max_items: int = Field(default=100_000, alias="SEARCH_MAX_ITEMS")
+    search_eviction_interval_seconds: int = Field(
+        default=60,
+        alias="SEARCH_EVICTION_INTERVAL_SECONDS",
+    )
+    himalayas_concurrency: int = Field(default=12, alias="HIMALAYAS_CONCURRENCY")
+    himalayas_timeout_seconds: float = Field(
+        default=20.0,
+        alias="HIMALAYAS_TIMEOUT_SECONDS",
+    )
 
     @field_validator("provider_config_json", mode="before")
     @classmethod

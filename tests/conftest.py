@@ -7,6 +7,8 @@ from collections.abc import Generator
 from uuid import UUID, uuid4
 
 import pytest
+
+os.environ.setdefault("APP_ENV", "test")
 from alembic import command
 from alembic.config import Config
 from alembic.util.exc import CommandError
@@ -21,12 +23,7 @@ from jobs_back.db import get_db
 from jobs_back.main import create_app
 from jobs_back.schemas.discovery import JobResult, SearchFilters
 from jobs_back.search.live import LiveSearchManager, SearchState
-
-
-class _NoOpProvider:
-    async def close(self) -> None:
-        return None
-
+from tests.helpers.fake_provider import FakeProvider
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -146,7 +143,7 @@ def api_client(db_session: Session) -> Generator[TestClient, None, None]:
 
 @pytest.fixture
 def search_manager() -> LiveSearchManager:
-    return LiveSearchManager(provider=_NoOpProvider())  # type: ignore[arg-type]
+    return LiveSearchManager(provider=FakeProvider(total_pages=1, items_per_page=0))
 
 
 def seed_search(

@@ -25,9 +25,8 @@ is superseded by
 is unchanged.
 
 **02 — Personalized live job search.** Trusted profiles, live provider results,
-and durable saved/applied snapshots only. JE-005 and JE-006 have partial
-implementation; their Plans contain reuse ledgers so worker agents finish that
-work instead of rebuilding it.
+and durable saved/applied snapshots only. JE-005 is complete; JE-006 continues
+against the final JE-004/005 API contracts.
 
 ## Tasks
 
@@ -37,7 +36,7 @@ work instead of rebuilding it.
 | [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `DONE` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
 | [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md) | 01 | `DONE` | JE-001 | Filtered and deterministically sorted job list and detail API |
 | [JE-004](specs/JE-004-trusted-profiles-personal-library.md) / [Plan](plans/JE-004-trusted-profiles-personal-library.md) | 02 | `DONE` | None | Trusted profiles, default preferences, and isolated saved/applied snapshots |
-| [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md) | 02 | `IN PROGRESS` | JE-004 | Per-profile progressive in-memory search and hardened Himalayas adapter |
+| [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md) | 02 | `DONE` | JE-004 | Per-profile progressive in-memory search and hardened Himalayas adapter |
 | [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md) | 02 | `IN PROGRESS` | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace |
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -45,12 +44,9 @@ completion criteria pass.
 
 ## Current implementation order
 
-1. Harden JE-005's existing search manager and Himalayas adapter against the
-   stable JE-004 profile/snapshot boundary.
-2. JE-006 may continue structural, accessibility, and mock-driven UI work while
-   JE-005 finishes, then must update its API client and run full journeys
-   against the final JE-004/005 contracts.
-3. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
+1. JE-006 must align its API client and full journeys with the final JE-004/005
+   contracts (including stale refresh and progressive search semantics).
+2. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
    skip markers referencing ADR-001; JE-004 PostgreSQL tests cover the active
    Batch 02 profile/library contract.
 

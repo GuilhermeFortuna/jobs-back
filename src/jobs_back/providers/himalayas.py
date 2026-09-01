@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
 
+from jobs_back.providers.protocol import ProviderPageBatch
+from jobs_back.providers.sanitize import strip_html
 from jobs_back.schemas.discovery import JobResult, SearchFilters
+
+logger = logging.getLogger(__name__)
 
 EMPLOYMENT_MAP = {
     "full time": "full_time",
@@ -19,6 +25,14 @@ EMPLOYMENT_MAP = {
     "intern": "internship",
     "volunteer": "other",
     "other": "other",
+}
+UPSTREAM_EMPLOYMENT = {
+    "full_time": "Full Time",
+    "part_time": "Part Time",
+    "contract": "Contractor",
+    "temporary": "Temporary",
+    "internship": "Intern",
+    "other": "Other",
 }
 PERIOD_FACTORS = {
     "hourly": Decimal("2080"),
@@ -43,7 +57,6 @@ def _timestamp(value: Any) -> datetime | None:
     if value in (None, ""):
         return None
     if isinstance(value, (int, float)):
-        # The live API currently returns Unix seconds despite older docs saying ms.
         if value > 10_000_000_000:
             value /= 1000
         return datetime.fromtimestamp(value, UTC)
@@ -65,7 +78,7 @@ def _money(value: Any, period: str | None) -> Decimal | None:
         return None
 
 
-def normalize_job(item: dict[str, Any]) -> JobResult:
+def normalize_job(item: dict[str, Any]) -> JobResult | None:
     period = str(_first(item, "salaryPeriod", "salary_period", default="annual"))
     restrictions = _first(
         item, "locationRestrictions", "location_restrictions", default=[]
@@ -88,7 +101,12 @@ def normalize_job(item: dict[str, Any]) -> JobResult:
     seniority = _first(item, "seniority", "seniorityLevel")
     if isinstance(seniority, list):
         seniority = ", ".join(str(value) for value in seniority)
-    job_id = str(_first(item, "id", "guid", "jobId", "slug"))
+    job_id = _first(item, "id", "guid", "jobId", "slug")
+    title = _first(item, "title")
+    if not job_id or not title:
+        logger.debug("Skipping malformed Himalayas row without id/title")
+        return None
+    job_id = str(job_id)
     url = _first(
         item,
         "applicationLink",
@@ -96,15 +114,16 @@ def normalize_job(item: dict[str, Any]) -> JobResult:
         "url",
         default=f"https://himalayas.app/jobs/{job_id}",
     )
+    raw_description = _first(item, "description", "descriptionHtml")
     return JobResult(
         provider_job_id=job_id,
-        title=str(_first(item, "title", default="Untitled role")),
+        title=str(title),
         company=str(_first(item, "companyName", "company", default="Unknown company")),
-        description=_first(item, "description", "descriptionHtml"),
+        description=strip_html(str(raw_description) if raw_description else None),
         location_text=", ".join(labels) if labels else "Remote worldwide",
         eligible_country_codes=sorted(set(countries)) or None,
         employment_type=EMPLOYMENT_MAP.get(employment, "unspecified"),
-        seniority=seniority,
+        seniority=str(seniority) if seniority is not None else None,
         salary_min_annual=_money(_first(item, "minSalary", "salaryMin"), period),
         salary_max_annual=_money(_first(item, "maxSalary", "salaryMax"), period),
         salary_currency=_first(item, "salaryCurrency", "currency"),
@@ -119,11 +138,18 @@ def normalize_job(item: dict[str, Any]) -> JobResult:
 class HimalayasProvider:
     key = "himalayas"
 
-    def __init__(self, *, concurrency: int = 12, timeout: float = 20) -> None:
+    def __init__(
+        self,
+        *,
+        concurrency: int = 12,
+        timeout: float = 20,
+        max_retries: int = 3,
+    ) -> None:
         self._client = httpx.AsyncClient(
             base_url="https://himalayas.app", timeout=timeout, follow_redirects=True
         )
         self._concurrency = concurrency
+        self._max_retries = max_retries
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -141,7 +167,8 @@ class HimalayasProvider:
         for value in filters.seniority:
             params.append(("seniority", value))
         for value in filters.employment_types:
-            params.append(("employment_type", value))
+            upstream = UPSTREAM_EMPLOYMENT.get(value, value)
+            params.append(("employment_type", upstream))
         upstream_sort = {
             "newest": "recent",
             "salary": "salaryDesc",
@@ -150,55 +177,147 @@ class HimalayasProvider:
         params.append(("sort", upstream_sort))
         return params
 
-    async def _page(self, filters: SearchFilters, page: int) -> dict[str, Any]:
-        response = await self._client.get(
-            "/jobs/api/search", params=self._params(filters, page)
-        )
-        response.raise_for_status()
-        return response.json()
+    @staticmethod
+    def _retry_delay(response: httpx.Response | None, attempt: int) -> float:
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return min(float(retry_after), 8.0)
+                except ValueError:
+                    try:
+                        parsed = parsedate_to_datetime(retry_after)
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=UTC)
+                        delay = (parsed - datetime.now(UTC)).total_seconds()
+                        return min(max(delay, 0.0), 8.0)
+                    except (TypeError, ValueError):
+                        pass
+        return min(0.5 * (2**attempt), 8.0)
 
-    async def pages(
-        self, filters: SearchFilters
-    ) -> AsyncIterator[tuple[list[JobResult], int, int]]:
-        first = await self._page(filters, 1)
-        raw_items = _first(first, "jobs", "results", "items", default=[])
-        total = int(_first(first, "totalCount", "total", default=len(raw_items)))
-        page_size = max(1, int(_first(first, "limit", "pageSize", default=20)))
+    async def _request_page(
+        self, filters: SearchFilters, page: int
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        last_warning: str | None = None
+        for attempt in range(self._max_retries):
+            response: httpx.Response | None = None
+            try:
+                response = await self._client.get(
+                    "/jobs/api/search", params=self._params(filters, page)
+                )
+                if response.status_code == 429 or response.status_code >= 500:
+                    last_warning = (
+                        f"Himalayas page {page} returned {response.status_code}"
+                    )
+                    if attempt + 1 < self._max_retries:
+                        await asyncio.sleep(self._retry_delay(response, attempt))
+                        continue
+                    return None, last_warning
+                response.raise_for_status()
+                return response.json(), None
+            except httpx.TimeoutException:
+                last_warning = f"Himalayas page {page} timed out"
+                if attempt + 1 < self._max_retries:
+                    await asyncio.sleep(self._retry_delay(response, attempt))
+                    continue
+            except httpx.HTTPError as exc:
+                last_warning = f"Himalayas page {page} request failed"
+                logger.debug(
+                    "Himalayas transport failure on page %s",
+                    page,
+                    exc_info=exc,
+                )
+                if attempt + 1 < self._max_retries:
+                    await asyncio.sleep(self._retry_delay(response, attempt))
+                    continue
+        return None, last_warning
+
+    def _normalize_page_items(self, raw_items: list[Any]) -> list[JobResult]:
+        normalized: list[JobResult] = []
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            job = normalize_job(item)
+            if job is not None:
+                normalized.append(job)
+        return normalized
+
+    async def pages(self, filters: SearchFilters) -> AsyncIterator[ProviderPageBatch]:
+        payload, warning = await self._request_page(filters, 1)
+        if payload is None:
+            yield ProviderPageBatch(
+                items=[],
+                page=1,
+                total_pages=1,
+                warnings=(warning or "Himalayas page 1 failed",),
+            )
+            return
+
+        raw_items = _first(payload, "jobs", "results", "items", default=[])
+        total = int(_first(payload, "totalCount", "total", default=len(raw_items)))
+        page_size = max(1, int(_first(payload, "limit", "pageSize", default=20)))
         total_pages = max(1, math.ceil(total / page_size))
-        yield [normalize_job(item) for item in raw_items], 1, total_pages
+        yield ProviderPageBatch(
+            items=self._normalize_page_items(raw_items),
+            page=1,
+            total_pages=total_pages,
+        )
 
-        queue: asyncio.Queue[int] = asyncio.Queue()
+        if total_pages <= 1:
+            return
+
+        queue: asyncio.Queue[int | None] = asyncio.Queue()
         for page in range(2, total_pages + 1):
             queue.put_nowait(page)
-        output: asyncio.Queue[tuple[int, list[JobResult]] | Exception] = asyncio.Queue()
+        output: asyncio.Queue[tuple[int, list[JobResult], tuple[str, ...]] | None] = (
+            asyncio.Queue()
+        )
 
         async def worker() -> None:
-            while not queue.empty():
+            while True:
+                page = await queue.get()
                 try:
-                    page = queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    return
-                try:
-                    payload = await self._page(filters, page)
-                    items = _first(payload, "jobs", "results", "items", default=[])
-                    await output.put((page, [normalize_job(item) for item in items]))
-                except (
-                    Exception
-                ) as exc:  # manager turns provider failures into warnings
-                    await output.put(exc)
+                    if page is None:
+                        return
+                    page_payload, page_warning = await self._request_page(filters, page)
+                    if page_payload is None:
+                        await output.put(
+                            (
+                                page,
+                                [],
+                                (page_warning or f"Himalayas page {page} failed",),
+                            )
+                        )
+                    else:
+                        items = _first(
+                            page_payload, "jobs", "results", "items", default=[]
+                        )
+                        await output.put(
+                            (
+                                page,
+                                self._normalize_page_items(items),
+                                (),
+                            )
+                        )
                 finally:
                     queue.task_done()
 
-        workers = [
-            asyncio.create_task(worker())
-            for _ in range(min(self._concurrency, total_pages - 1))
-        ]
+        worker_count = min(self._concurrency, total_pages - 1)
+        workers = [asyncio.create_task(worker()) for _ in range(worker_count)]
         try:
-            for _ in range(2, total_pages + 1):
+            for _ in range(total_pages - 1):
                 result = await output.get()
-                if isinstance(result, Exception):
-                    raise result
-                page, items = result
-                yield items, page, total_pages
+                if result is None:
+                    continue
+                page, items, warnings = result
+                yield ProviderPageBatch(
+                    items=items,
+                    page=page,
+                    total_pages=total_pages,
+                    warnings=warnings,
+                )
         finally:
+            for _ in workers:
+                queue.put_nowait(None)
+            await queue.join()
             await asyncio.gather(*workers, return_exceptions=True)

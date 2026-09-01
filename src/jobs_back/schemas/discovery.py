@@ -112,3 +112,8 @@ class SearchPage(BaseModel):
     total: int | None = None
     is_complete: bool
     warnings: list[str] = Field(default_factory=list)
+
+
+class SearchRefreshPage(SearchPage):
+    previous_search_id: UUID | None = None
+    serving_search_id: UUID

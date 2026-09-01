@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from jobs_back.api.profiles import router as profiles_router
 from jobs_back.api.searches import router as searches_router
 from jobs_back.config import get_settings
+from jobs_back.db import SessionLocal
+from jobs_back.providers.himalayas import HimalayasProvider
 from jobs_back.search.live import LiveSearchManager
 
 
@@ -14,7 +16,16 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.search_manager = LiveSearchManager()
+        manager = LiveSearchManager(
+            provider=HimalayasProvider(
+                concurrency=settings.himalayas_concurrency,
+                timeout=settings.himalayas_timeout_seconds,
+            ),
+            settings=settings,
+        )
+        app.state.search_manager = manager
+        if settings.app_env != "test":
+            manager.start_background_tasks(SessionLocal)
         yield
         await app.state.search_manager.close()
 
