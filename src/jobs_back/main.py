@@ -1,13 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jobs_back.api.jobs import router as jobs_router
+from jobs_back.api.profiles import router as profiles_router
+from jobs_back.api.searches import router as searches_router
 from jobs_back.config import get_settings
+from jobs_back.search.live import LiveSearchManager
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Job Engine API", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.search_manager = LiveSearchManager()
+        yield
+        await app.state.search_manager.close()
+
+    app = FastAPI(title="Job Scout API", version="0.2.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -17,7 +28,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.include_router(jobs_router)
+    app.include_router(profiles_router)
+    app.include_router(searches_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

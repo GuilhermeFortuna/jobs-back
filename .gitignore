@@ -26,3 +26,6 @@ dev-stack/.env
 
 # Alembic (keep versions/, ignore local scratch)
 *.db
+
+# cursor
+.cursor/*

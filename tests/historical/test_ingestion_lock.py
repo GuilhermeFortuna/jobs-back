@@ -18,6 +18,9 @@ from jobs_back.ingestion.registry import clear_registry
 from jobs_back.ingestion.service import IngestionService, LockContention, SyncRunSuccess
 from jobs_back.models.enums import SyncMode
 from tests.helpers.fake_adapters import FakeAdapter, make_job_input, register
+from tests.historical._markers import BATCH01_SUPERSEDED
+
+pytestmark = BATCH01_SUPERSEDED
 
 
 @pytest.fixture(autouse=True)

@@ -9,17 +9,21 @@ from jobs_back.models.enums import (
     SyncRunStatus,
     SyncTrigger,
 )
-from jobs_back.models.job import Job
-from jobs_back.models.sync_run import SyncRun
+from jobs_back.models.profile import Profile
+from jobs_back.models.saved_job import SavedJob
+
+# Batch 01 catalog models remain importable for historical ingestion code:
+#   from jobs_back.models.job import Job
+#   from jobs_back.models.sync_run import SyncRun
 
 __all__ = [
     "EmploymentType",
-    "Job",
     "JobStatus",
     "RemoteType",
+    "Profile",
     "SalaryPeriod",
+    "SavedJob",
     "SyncMode",
-    "SyncRun",
     "SyncRunStatus",
     "SyncTrigger",
 ]

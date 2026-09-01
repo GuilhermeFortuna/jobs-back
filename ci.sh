@@ -38,7 +38,25 @@ run_test() {
     exit 1
   fi
   echo "==> schema"
-  DATABASE_URL="${TEST_DATABASE_URL}" uv run alembic upgrade head
+  DATABASE_URL="${TEST_DATABASE_URL}" uv run python - <<'PY'
+from sqlalchemy import create_engine, inspect, text
+
+from alembic import command
+from alembic.config import Config
+
+url = __import__("os").environ["DATABASE_URL"]
+engine = create_engine(url)
+inspector = inspect(engine)
+if "jobs" in inspector.get_table_names():
+    with engine.begin() as connection:
+        if connection.execute(text("SELECT COUNT(*) FROM jobs")).scalar():
+            connection.execute(text("DELETE FROM jobs"))
+
+cfg = Config("alembic.ini")
+cfg.set_main_option("sqlalchemy.url", url)
+command.upgrade(cfg, "head")
+engine.dispose()
+PY
   DATABASE_URL="${TEST_DATABASE_URL}" uv run alembic check
   echo "==> test"
   DATABASE_URL="${TEST_DATABASE_URL}" uv run pytest
