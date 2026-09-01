@@ -50,16 +50,14 @@ authentication, and AI features stay deferred.
 | [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md)       | 02    | `DONE`  | JE-004         | Per-profile progressive in-memory search and hardened Himalayas adapter                   |
 | [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md)     | 02    | `DONE`  | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace                           |
 | [JE-007](specs/JE-007-multi-provider-search-fan-in.md) / [Plan](plans/JE-007-multi-provider-search-fan-in.md)           | 03    | `DONE` | JE-005         | Provider registry and concurrent multi-provider fan-in with RemoteOK and Jobicy adapters |
-| [JE-008](specs/JE-008-cross-provider-duplicate-consolidation.md) / [Plan](plans/JE-008-cross-provider-duplicate-consolidation.md) | 03    | `BLOCKED` | JE-007         | Deterministic cross-provider duplicate consolidation in memory and in the personal library |
-| [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)     | 03    | `BLOCKED` | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace   |
+| [JE-008](specs/JE-008-cross-provider-duplicate-consolidation.md) / [Plan](plans/JE-008-cross-provider-duplicate-consolidation.md) | 03    | `DONE` | JE-007         | Deterministic cross-provider duplicate consolidation in memory and in the personal library |
+| [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)     | 03    | `READY` | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace   |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
 completion criteria pass.
 
-JE-008 is blocked until JE-007 delivers results from more than one provider.
-JE-009 is blocked until both JE-007 and JE-008 publish their final API
-contracts.
+JE-009 is ready now that JE-007 and JE-008 are complete.
 
 ## Current implementation order
 

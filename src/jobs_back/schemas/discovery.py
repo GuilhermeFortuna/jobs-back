@@ -53,6 +53,13 @@ class ProfileRead(BaseModel):
     updated_at: datetime
 
 
+class AlternateSource(BaseModel):
+    provider: str
+    provider_job_id: str
+    job_url: HttpUrl
+    apply_url: HttpUrl | None = None
+
+
 class JobResult(BaseModel):
     provider: str = "himalayas"
     provider_job_id: str
@@ -71,6 +78,7 @@ class JobResult(BaseModel):
     apply_url: HttpUrl | None = None
     company_logo_url: HttpUrl | None = None
     posted_at: datetime | None = None
+    alternate_sources: list[AlternateSource] = Field(default_factory=list)
     provider_payload: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
 

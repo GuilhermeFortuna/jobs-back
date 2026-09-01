@@ -27,7 +27,9 @@ async def test_multi_provider_merges_results() -> None:
     final = manager.page(started.state.id, 1, 25)
     assert final is not None
     assert final.status == "complete"
-    assert len(final.items) == 4
+    assert len(final.items) == 3
+    assert final.total == 3
+    assert final.checked_count == 4
     assert {item.provider for item in final.items} == {"alpha", "beta"}
     assert len(final.providers) == 2
     await manager.close()

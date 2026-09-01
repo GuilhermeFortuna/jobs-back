@@ -346,3 +346,123 @@ def test_list_ordering_uses_relevant_state_timestamp(
     listed = client.get(f"/profiles/{profile_id}/jobs")
     ids = [item["provider_job_id"] for item in listed.json()]
     assert ids.index("newer") < ids.index("older")
+
+
+def test_save_duplicate_from_second_provider_updates_existing_row(
+    api_client_with_search: tuple[TestClient, object],
+) -> None:
+    client, manager = api_client_with_search
+    profile_id = _create_profile(client, "DedupSave")
+    primary = make_job_result(
+        provider="himalayas",
+        provider_job_id="h-1",
+        company="Acme Corp, Inc.",
+        title="Senior Python Developer",
+    )
+    alternate = make_job_result(
+        provider="remoteok",
+        provider_job_id="r-1",
+        company="ACME CORP",
+        title="Senior Python Developer",
+        job_url="https://remoteok.com/jobs/1",
+        apply_url="https://remoteok.com/jobs/1/apply",
+    )
+    search_id = seed_search(manager, uuid.UUID(profile_id), [primary, alternate])
+
+    first = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(search_id),
+            "provider": primary.provider,
+            "provider_job_id": primary.provider_job_id,
+            "state": "saved",
+        },
+    )
+    second = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(search_id),
+            "provider": alternate.provider,
+            "provider_job_id": alternate.provider_job_id,
+            "state": "saved",
+        },
+    )
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert first.json()["id"] == second.json()["id"]
+    body = second.json()
+    assert body["alternate_sources"]
+    assert any(source["provider"] == "remoteok" for source in body["alternate_sources"])
+    assert len(client.get(f"/profiles/{profile_id}/jobs").json()) == 1
+
+
+def test_save_duplicate_preserves_applied_state_and_saved_at(
+    api_client_with_search: tuple[TestClient, object],
+) -> None:
+    client, manager = api_client_with_search
+    profile_id = _create_profile(client, "AppliedDedup")
+    primary = make_job_result(
+        provider="himalayas",
+        provider_job_id="applied-1",
+        company="Acme Corp",
+        title="Backend Engineer",
+    )
+    alternate = make_job_result(
+        provider="remoteok",
+        provider_job_id="applied-2",
+        company="Acme Corp, Inc.",
+        title="Backend Engineer",
+        job_url="https://remoteok.com/jobs/2",
+    )
+    search_id = seed_search(manager, uuid.UUID(profile_id), [primary, alternate])
+
+    applied = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(search_id),
+            "provider": primary.provider,
+            "provider_job_id": primary.provider_job_id,
+            "state": "applied",
+        },
+    )
+    saved_at = applied.json()["saved_at"]
+    applied_at = applied.json()["applied_at"]
+
+    duplicate = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(search_id),
+            "provider": alternate.provider,
+            "provider_job_id": alternate.provider_job_id,
+            "state": "saved",
+        },
+    )
+    body = duplicate.json()
+    assert body["state"] == "applied"
+    assert body["saved_at"] == saved_at
+    assert body["applied_at"] == applied_at
+
+
+def test_library_and_search_responses_include_alternate_sources(
+    api_client_with_search: tuple[TestClient, object],
+) -> None:
+    client, manager = api_client_with_search
+    profile_id = _create_profile(client, "Schema")
+    job = make_job_result()
+    search_id = seed_search(manager, uuid.UUID(profile_id), [job])
+
+    search_page = client.get(
+        f"/searches/{search_id}?profile_id={profile_id}&page=1&page_size=10"
+    )
+    assert search_page.status_code == 200
+    assert search_page.json()["items"][0]["alternate_sources"] == []
+
+    saved = client.post(
+        f"/profiles/{profile_id}/jobs",
+        json={
+            "search_id": str(search_id),
+            "provider": job.provider,
+            "provider_job_id": job.provider_job_id,
+        },
+    )
+    assert saved.json()["alternate_sources"] == []

@@ -160,9 +160,9 @@ def seed_search(
         filters=SearchFilters(),
         status="complete",
         progress=1,
-        items=items,
     )
     manager.states[sid] = state
+    manager._consolidate_items(state, items)
     return sid
 
 

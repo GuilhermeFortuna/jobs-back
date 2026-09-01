@@ -32,6 +32,11 @@ class SavedJob(Base):
             "provider_job_id",
             name="uq_saved_jobs_profile_provider",
         ),
+        UniqueConstraint(
+            "profile_id",
+            "dedup_key",
+            name="uq_saved_jobs_profile_dedup",
+        ),
         CheckConstraint("state IN ('saved', 'applied')", name="ck_saved_jobs_state"),
         CheckConstraint(
             "(state = 'saved' AND applied_at IS NULL) OR "
@@ -90,6 +95,10 @@ class SavedJob(Base):
     apply_url: Mapped[str | None] = mapped_column(Text)
     company_logo_url: Mapped[str | None] = mapped_column(Text)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    dedup_key: Mapped[str] = mapped_column(Text, nullable=False)
+    alternate_sources: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     provider_payload: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict
     )

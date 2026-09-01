@@ -12,16 +12,32 @@ from jobs_back.search.live import LiveSearchManager
 from tests.helpers.discovery import make_job_result
 
 
-def _synthetic_items(count: int) -> list:
+def _synthetic_items(count: int, *, with_duplicates: bool = False) -> list:
     base = datetime(2024, 1, 1, tzinfo=UTC)
-    return [
-        make_job_result(
+    items = []
+    for index in range(count):
+        primary = make_job_result(
             provider_job_id=f"job-{index}",
+            title=f"Role {index}",
             salary_max_annual=Decimal(index),
             posted_at=base + timedelta(days=index % 365),
         )
-        for index in range(count)
-    ]
+        items.append(primary)
+        if with_duplicates:
+            items.append(
+                make_job_result(
+                    provider="remoteok",
+                    provider_job_id=f"dup-{index}",
+                    title=primary.title,
+                    company=f"{primary.company}, Inc.",
+                    eligible_country_codes=primary.eligible_country_codes,
+                    location_text=primary.location_text,
+                    salary_max_annual=primary.salary_max_annual,
+                    posted_at=primary.posted_at,
+                    job_url=f"https://remoteok.com/jobs/{index}",
+                )
+            )
+    return items
 
 
 class StaticProvider:
@@ -61,3 +77,26 @@ async def test_filter_and_sort_scales_sub_quadratically() -> None:
     large = await run(100_000)
     await manager.close()
     assert large / small <= 15
+
+
+@pytest.mark.benchmark
+@pytest.mark.asyncio
+async def test_consolidation_scales_sub_quadratically_with_duplicates() -> None:
+    manager = LiveSearchManager(provider=StaticProvider([]))
+    filters = SearchFilters(sort="salary")
+
+    async def run(count: int) -> float:
+        provider = StaticProvider(_synthetic_items(count, with_duplicates=True))
+        manager.providers = [provider]
+        state = manager.start(uuid4(), filters).state
+        started = time.perf_counter()
+        await manager._populate(state, (uuid4(), "key"))
+        elapsed = time.perf_counter() - started
+        assert state.status == "complete"
+        assert len(state.items) == count
+        return elapsed
+
+    small = await run(10_000)
+    large = await run(100_000)
+    await manager.close()
+    assert large / small <= 20

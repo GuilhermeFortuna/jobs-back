@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from jobs_back.models.profile import Profile
 from jobs_back.models.saved_job import SavedJob
+from jobs_back.normalization.dedup import derive_dedup_key
 from jobs_back.schemas.discovery import (
     JobResult,
     ProfileCreate,
@@ -25,6 +26,7 @@ from jobs_back.services.exceptions import (
     DuplicateProfileNameError,
     NotFoundError,
 )
+from jobs_back.services.library_dedup import alternate_sources_payload
 
 _DUPLICATE_PROFILE_NAME = "A profile with that name already exists"
 
@@ -81,10 +83,42 @@ def _snapshot_values(result: JobResult, state: LibraryState, *, now: datetime) -
         ),
         "posted_at": result.posted_at,
         "provider_payload": result.provider_payload,
+        "dedup_key": derive_dedup_key(result),
+        "alternate_sources": alternate_sources_payload(result),
         "saved_at": now,
         "applied_at": applied_at,
         "updated_at": now,
     }
+
+
+def _refresh_snapshot_fields(
+    job: SavedJob,
+    result: JobResult,
+    *,
+    now: datetime,
+) -> None:
+    job.provider = result.provider
+    job.provider_job_id = result.provider_job_id
+    job.title = result.title
+    job.company = result.company
+    job.description = result.description
+    job.location_text = result.location_text
+    job.eligible_country_codes = result.eligible_country_codes
+    job.employment_type = result.employment_type
+    job.remote_type = result.remote_type
+    job.seniority = result.seniority
+    job.salary_min_annual = result.salary_min_annual
+    job.salary_max_annual = result.salary_max_annual
+    job.salary_currency = result.salary_currency
+    job.job_url = str(result.job_url)
+    job.apply_url = str(result.apply_url) if result.apply_url else None
+    job.company_logo_url = (
+        str(result.company_logo_url) if result.company_logo_url else None
+    )
+    job.posted_at = result.posted_at
+    job.provider_payload = result.provider_payload
+    job.dedup_key = derive_dedup_key(result)
+    job.updated_at = now
 
 
 def list_profiles(session: Session) -> list[Profile]:
@@ -153,6 +187,20 @@ def get_library_job(session: Session, profile_id: UUID, job_id: UUID) -> SavedJo
     return job
 
 
+def _merge_into_existing_by_dedup(
+    session: Session,
+    existing: SavedJob,
+    result: JobResult,
+    *,
+    now: datetime,
+) -> SavedJob:
+    _refresh_snapshot_fields(existing, result, now=now)
+    existing.alternate_sources = alternate_sources_payload(result)
+    session.commit()
+    session.refresh(existing)
+    return existing
+
+
 def save_library_job(
     session: Session,
     profile_id: UUID,
@@ -167,9 +215,8 @@ def save_library_job(
         body.provider,
         body.provider_job_id,
     )
-
+    dedup_key = derive_dedup_key(result)
     now = _now()
-    snapshot = _snapshot_values(result, body.state, now=now)
     existing_id = session.scalar(
         select(SavedJob.id).where(
             SavedJob.profile_id == profile_id,
@@ -179,6 +226,23 @@ def save_library_job(
     )
     created = existing_id is None
 
+    if created:
+        existing_by_dedup = session.scalar(
+            select(SavedJob).where(
+                SavedJob.profile_id == profile_id,
+                SavedJob.dedup_key == dedup_key,
+            )
+        )
+        if existing_by_dedup is not None:
+            job = _merge_into_existing_by_dedup(
+                session,
+                existing_by_dedup,
+                result,
+                now=now,
+            )
+            return job, False
+
+    snapshot = _snapshot_values(result, body.state, now=now)
     insert_stmt = insert(SavedJob).values(profile_id=profile_id, **snapshot)
     excluded = insert_stmt.excluded
     upsert = insert_stmt.on_conflict_do_update(
@@ -200,6 +264,8 @@ def save_library_job(
             "company_logo_url": excluded.company_logo_url,
             "posted_at": excluded.posted_at,
             "provider_payload": excluded.provider_payload,
+            "dedup_key": excluded.dedup_key,
+            "alternate_sources": excluded.alternate_sources,
             "updated_at": excluded.updated_at,
             "state": excluded.state,
             "applied_at": case(

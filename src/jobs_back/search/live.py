@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from jobs_back.normalization.dedup import derive_dedup_key
 from jobs_back.providers.himalayas import HimalayasProvider
 from jobs_back.providers.protocol import ProgressiveProvider
 from jobs_back.schemas.discovery import (
@@ -19,6 +20,7 @@ from jobs_back.schemas.discovery import (
     SearchFilters,
     SearchPage,
 )
+from jobs_back.search.consolidation import matches_source_identity, merge_results
 from jobs_back.services.exceptions import (
     NotFoundError,
     SearchExpiredError,
@@ -74,6 +76,7 @@ class SearchState:
     is_partial: bool = False
     provider_trackers: dict[str, ProviderTracker] = field(default_factory=dict)
     items: list[JobResult] = field(default_factory=list)
+    dedup_index: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -267,6 +270,20 @@ class LiveSearchManager:
             self._aggregate_progress(state.provider_trackers),
         )
 
+    @staticmethod
+    def _consolidate_items(
+        state: SearchState,
+        items: list[JobResult],
+    ) -> None:
+        for item in items:
+            key = derive_dedup_key(item)
+            if key in state.dedup_index:
+                idx = state.dedup_index[key]
+                state.items[idx] = merge_results(state.items[idx], item)
+            else:
+                state.dedup_index[key] = len(state.items)
+                state.items.append(item)
+
     async def _consume_provider(
         self,
         state: SearchState,
@@ -278,7 +295,7 @@ class LiveSearchManager:
             async for batch in provider.pages(state.filters):
                 filtered = self._filter(batch.items, state.filters)
                 async with state.lock:
-                    state.items.extend(filtered)
+                    self._consolidate_items(state, filtered)
                     self._apply_batch(
                         state,
                         tracker,
@@ -443,7 +460,7 @@ class LiveSearchManager:
         if state.profile_id != profile_id:
             raise NotFoundError("Search not found for this profile")
         for item in state.items:
-            if item.provider == provider and item.provider_job_id == provider_job_id:
+            if matches_source_identity(item, provider, provider_job_id):
                 return item
         raise SearchJobNotFoundError("Job not found in search results")
 
