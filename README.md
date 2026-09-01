@@ -122,8 +122,8 @@ Relevant env vars (see [`.env.example`](.env.example)):
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SEARCH_STATE_TTL_MINUTES` | `60` | Evict completed searches after this age |
-| `SEARCH_MAX_STATES` | `200` | Cap total in-memory search states (effective default scales with enabled providers) |
-| `SEARCH_MAX_ITEMS` | `100000` | Cap approximate items held across states (effective default scales with enabled providers) |
+| `SEARCH_MAX_STATES` | `200` | Cap total in-memory search states (unchanged by fan-in) |
+| `SEARCH_MAX_ITEMS` | `100000` | Cap approximate items held across states (effective default scales up with enabled providers; set explicitly to cap memory) |
 | `PROVIDER_CONFIG_JSON` | `{}` | Enable/disable `himalayas`, `remoteok`, `jobicy` and pass per-adapter options |
 | `HIMALAYAS_CONCURRENCY` | `12` | Bounded upstream page workers (Himalayas default options) |
 

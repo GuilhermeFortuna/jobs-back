@@ -8,12 +8,12 @@ from typing import Any
 from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Serialized JSON size (bytes) of representative JobResult + provider_payload fixtures.
-# Measured in tests/test_search_retention.py; used to scale item budgets for fan-in.
-HIMALAYAS_ITEM_BYTES = 2_400
-REMOTEOK_ITEM_BYTES = 2_800
-JOBICY_ITEM_BYTES = 8_500
-BASELINE_ITEM_BYTES = HIMALAYAS_ITEM_BYTES
+# Serialized JSON size (bytes) of one retained JobResult including its raw
+# provider_payload, measured from the recorded provider fixtures and asserted in
+# tests/test_search_retention.py. Fixture descriptions are trimmed, so this is a
+# floor: deployments seeing long descriptions should set SEARCH_MAX_ITEMS
+# explicitly rather than relying on the derived default.
+OBSERVED_ITEM_BYTES = 600
 BASELINE_MAX_ITEMS = 100_000
 BASELINE_MAX_STATES = 200
 
@@ -97,18 +97,26 @@ class Settings(BaseSettings):
         ]
 
     def effective_search_max_items(self, enabled_provider_count: int) -> int:
+        """Scale the global item budget with fan-in volume.
+
+        Fan-in multiplies the items one index holds by roughly the enabled
+        provider count. Inheriting the single-provider budget would therefore
+        evict warm indexes that are still in use purely because more providers
+        were enabled, which JE-007 forbids. An explicit SEARCH_MAX_ITEMS always
+        wins, so a memory-constrained deployment can cap this.
+        """
         if self.search_max_items != BASELINE_MAX_ITEMS:
             return self.search_max_items
-        count = max(1, enabled_provider_count)
-        avg_bytes = (HIMALAYAS_ITEM_BYTES + REMOTEOK_ITEM_BYTES + JOBICY_ITEM_BYTES) / 3
-        payload_ratio = avg_bytes / BASELINE_ITEM_BYTES
-        return max(1, int(BASELINE_MAX_ITEMS / (count * payload_ratio)))
+        return BASELINE_MAX_ITEMS * max(1, enabled_provider_count)
 
     def effective_search_max_states(self, enabled_provider_count: int) -> int:
-        if self.search_max_states != BASELINE_MAX_STATES:
-            return self.search_max_states
-        count = max(1, enabled_provider_count)
-        return max(1, BASELINE_MAX_STATES // count)
+        """Fan-in adds items per state, not additional states.
+
+        The state budget is therefore unchanged by the enabled provider count;
+        the item budget above absorbs fan-in volume.
+        """
+        del enabled_provider_count
+        return self.search_max_states
 
 
 @lru_cache
