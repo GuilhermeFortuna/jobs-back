@@ -15,45 +15,42 @@ Status values:
 - `BLOCKED` — implementation cannot start or finish until the listed dependency
   or an explicitly recorded external condition is resolved.
 
-**Batch 01 — Backend foundation.** Establishes the normalized PostgreSQL model,
-provider-neutral ingestion path, and searchable read API. It deliberately defers
-concrete providers, scheduling, frontend discovery, and cross-provider
-deduplication.
+## Batches
+
+**01 — Backend foundation.** Normalized PostgreSQL model, provider-neutral
+ingestion path, and searchable read API. Defers concrete providers, scheduling,
+frontend discovery, and cross-provider deduplication. Catalog-persistence runtime
+is superseded by
+[ADR-001](decisions/ADR-001-personal-library-live-search.md); completion status
+is unchanged.
+
+**02 — Personalized live job search.** Trusted profiles, live provider results,
+and durable saved/applied snapshots only. JE-005 and JE-006 have partial
+implementation; their Plans contain reuse ledgers so worker agents finish that
+work instead of rebuilding it.
+
+## Tasks
 
 | ID | Batch | Status | Depends on | Deliverable |
 | --- | --- | --- | --- | --- |
 | [JE-001](specs/JE-001-normalized-job-model.md) / [Plan](plans/JE-001-normalized-job-model.md) | 01 | `DONE` | None | Normalized PostgreSQL job model, validation, migration, and lifecycle fields |
 | [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md) | 01 | `DONE` | JE-001 | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner |
 | [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md) | 01 | `DONE` | JE-001 | Filtered and deterministically sorted job list and detail API |
-
-Batch 01 remains `DONE` as reviewed history. Its catalog-persistence runtime is
-superseded by [ADR-001](decisions/ADR-001-personal-library-live-search.md); this
-does not retroactively change its completion status.
-
-**Batch 02 — Personalized live job search.** Reorients the product around trusted
-profiles, live provider results, and durable saved/applied snapshots only.
-
-| ID | Batch | Status | Depends on | Deliverable |
-| --- | --- | --- | --- | --- |
 | [JE-004](specs/JE-004-trusted-profiles-personal-library.md) / [Plan](plans/JE-004-trusted-profiles-personal-library.md) | 02 | `DONE` | None | Trusted profiles, default preferences, and isolated saved/applied snapshots |
 | [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md) | 02 | `IN PROGRESS` | JE-004 | Per-profile progressive in-memory search and hardened Himalayas adapter |
 | [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md) | 02 | `IN PROGRESS` | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace |
 
-All three Batch 02 rows are `IN PROGRESS` because partial implementation already
-exists. The paired Plans contain reuse ledgers so worker agents finish that work
-instead of rebuilding it. None may move to `DONE` until its own acceptance and
+None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
 completion criteria pass.
 
 ## Current implementation order
 
-1. Finish JE-004's schema transition, authoritative snapshot path, isolation,
-   and tests first because JE-005 and JE-006 consume its contract.
-2. Harden JE-005's existing search manager and Himalayas adapter against the
+1. Harden JE-005's existing search manager and Himalayas adapter against the
    stable JE-004 profile/snapshot boundary.
-3. JE-006 may continue structural, accessibility, and mock-driven UI work while
-   JE-004/005 finish, then must update its API client and run full journeys
-   against their final contracts.
-4. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
+2. JE-006 may continue structural, accessibility, and mock-driven UI work while
+   JE-005 finishes, then must update its API client and run full journeys
+   against the final JE-004/005 contracts.
+3. Batch 01 catalog runtime tests live under `tests/historical/` with explicit
    skip markers referencing ADR-001; JE-004 PostgreSQL tests cover the active
    Batch 02 profile/library contract.
 
