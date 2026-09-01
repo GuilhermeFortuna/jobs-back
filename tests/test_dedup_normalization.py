@@ -125,3 +125,19 @@ def test_realistic_titles_normalize_deterministically(title: str, company: str) 
         )
     )
     assert first == second
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("Backend Engineer (Senior)", "Backend Engineer (Junior)"),
+        ("Engineer (II)", "Engineer (III)"),
+        ("Data Analyst [Senior]", "Data Analyst [Entry Level]"),
+        ("Developer (Lead)", "Developer (Intern)"),
+    ],
+)
+def test_bracketed_seniority_and_numbering_stay_distinct(
+    first: str, second: str
+) -> None:
+    """Qualifier stripping must not erase seniority or numbering (JE-008 AC 3)."""
+    assert normalize_title(first) != normalize_title(second)

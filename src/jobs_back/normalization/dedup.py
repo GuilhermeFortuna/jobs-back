@@ -20,6 +20,52 @@ _GENDER_MARKER_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Tokens that distinguish one role from another. A bracketed or parenthetical
+# qualifier containing any of these is unwrapped rather than dropped, so
+# "Engineer (Senior)" and "Engineer (Junior)" keep distinct keys. Dropping them
+# would merge distinct roles, which the Spec forbids outright.
+_MEANINGFUL_QUALIFIER_TOKENS = frozenset(
+    {
+        "intern",
+        "internship",
+        "entry",
+        "graduate",
+        "junior",
+        "jr",
+        "associate",
+        "mid",
+        "intermediate",
+        "senior",
+        "sr",
+        "staff",
+        "principal",
+        "lead",
+        "head",
+        "director",
+        "i",
+        "ii",
+        "iii",
+        "iv",
+        "v",
+    }
+)
+_DIGIT_RE = re.compile(r"\d")
+
+
+def _qualifier_is_meaningful(inner: str) -> bool:
+    if _DIGIT_RE.search(inner):
+        return True
+    tokens = _collapse(inner.lower()).split()
+    return any(token in _MEANINGFUL_QUALIFIER_TOKENS for token in tokens)
+
+
+def _strip_qualifiers(pattern: re.Pattern[str], text: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        inner = match.group(0)[1:-1]
+        return f" {inner} " if _qualifier_is_meaningful(inner) else " "
+
+    return pattern.sub(replace, text)
+
 
 def _collapse(text: str) -> str:
     return _COLLAPSE_RE.sub(" ", text).strip()
@@ -38,8 +84,8 @@ def normalize_company(name: str) -> str:
 def normalize_title(title: str) -> str:
     lowered = title.lower()
     lowered = _GENDER_MARKER_RE.sub("", lowered)
-    lowered = _BRACKETED_RE.sub("", lowered)
-    lowered = _PARENTHETICAL_RE.sub("", lowered)
+    lowered = _strip_qualifiers(_BRACKETED_RE, lowered)
+    lowered = _strip_qualifiers(_PARENTHETICAL_RE, lowered)
     return _collapse(lowered)
 
 
