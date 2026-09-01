@@ -10,6 +10,7 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 
 from jobs_back.providers.protocol import ProviderPageBatch
 from jobs_back.providers.sanitize import strip_html
@@ -48,14 +49,17 @@ PERIOD_FACTORS = {
 def _first(item: dict[str, Any], *names: str, default: Any = None) -> Any:
     for name in names:
         value = item.get(name)
-        if value is not None:
-            return value
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        return value
     return default
 
 
 def _timestamp(value: Any) -> datetime | None:
     if value in (None, ""):
         return None
+    if isinstance(value, str) and value.strip().isdigit():
+        value = float(value)
     if isinstance(value, (int, float)):
         if value > 10_000_000_000:
             value /= 1000
@@ -70,10 +74,12 @@ def _timestamp(value: Any) -> datetime | None:
 def _money(value: Any, period: str | None) -> Decimal | None:
     if value in (None, ""):
         return None
+    factor = PERIOD_FACTORS.get((period or "annual").lower())
+    if factor is None:
+        logger.debug("Skipping Himalayas salary with unknown period %r", period)
+        return None
     try:
-        return Decimal(str(value)) * PERIOD_FACTORS.get(
-            (period or "annual").lower(), Decimal("1")
-        )
+        return Decimal(str(value)) * factor
     except (InvalidOperation, TypeError):
         return None
 
@@ -101,38 +107,46 @@ def normalize_job(item: dict[str, Any]) -> JobResult | None:
     seniority = _first(item, "seniority", "seniorityLevel")
     if isinstance(seniority, list):
         seniority = ", ".join(str(value) for value in seniority)
-    job_id = _first(item, "id", "guid", "jobId", "slug")
+    job_id = _first(item, "guid", "id", "jobId", "slug")
     title = _first(item, "title")
     if not job_id or not title:
         logger.debug("Skipping malformed Himalayas row without id/title")
         return None
     job_id = str(job_id)
-    url = _first(
-        item,
-        "applicationLink",
-        "applyUrl",
-        "url",
-        default=f"https://himalayas.app/jobs/{job_id}",
-    )
+    url = _first(item, "applicationLink", "applyUrl", "url")
+    if url is None:
+        # The stable identity is the guid, which is currently an application URL.
+        url = (
+            job_id
+            if job_id.startswith(("http://", "https://"))
+            else f"https://himalayas.app/jobs/{job_id}"
+        )
     raw_description = _first(item, "description", "descriptionHtml")
-    return JobResult(
-        provider_job_id=job_id,
-        title=str(title),
-        company=str(_first(item, "companyName", "company", default="Unknown company")),
-        description=strip_html(str(raw_description) if raw_description else None),
-        location_text=", ".join(labels) if labels else "Remote worldwide",
-        eligible_country_codes=sorted(set(countries)) or None,
-        employment_type=EMPLOYMENT_MAP.get(employment, "unspecified"),
-        seniority=str(seniority) if seniority is not None else None,
-        salary_min_annual=_money(_first(item, "minSalary", "salaryMin"), period),
-        salary_max_annual=_money(_first(item, "maxSalary", "salaryMax"), period),
-        salary_currency=_first(item, "salaryCurrency", "currency"),
-        job_url=str(url),
-        apply_url=str(url),
-        company_logo_url=_first(item, "companyLogo", "companyLogoUrl", "logo") or None,
-        posted_at=_timestamp(_first(item, "pubDate", "publishedAt", "postedAt")),
-        provider_payload=item,
-    )
+    try:
+        return JobResult(
+            provider_job_id=job_id,
+            title=str(title),
+            company=str(
+                _first(item, "companyName", "company", default="Unknown company")
+            ),
+            description=strip_html(str(raw_description) if raw_description else None),
+            location_text=", ".join(labels) if labels else "Remote worldwide",
+            eligible_country_codes=sorted(set(countries)) or None,
+            employment_type=EMPLOYMENT_MAP.get(employment, "unspecified"),
+            seniority=str(seniority) if seniority is not None else None,
+            salary_min_annual=_money(_first(item, "minSalary", "salaryMin"), period),
+            salary_max_annual=_money(_first(item, "maxSalary", "salaryMax"), period),
+            salary_currency=_first(item, "salaryCurrency", "currency"),
+            job_url=str(url),
+            apply_url=str(url),
+            company_logo_url=_first(item, "companyLogo", "companyLogoUrl", "logo")
+            or None,
+            posted_at=_timestamp(_first(item, "pubDate", "publishedAt", "postedAt")),
+            provider_payload=item,
+        )
+    except ValidationError:
+        logger.debug("Skipping unusable Himalayas row %s", job_id)
+        return None
 
 
 class HimalayasProvider:
@@ -232,7 +246,10 @@ class HimalayasProvider:
                     continue
         return None, last_warning
 
-    def _normalize_page_items(self, raw_items: list[Any]) -> list[JobResult]:
+    def _normalize_page_items(self, raw_items: Any) -> list[JobResult]:
+        if not isinstance(raw_items, list):
+            msg = "Himalayas payload did not contain a job list"
+            raise ValueError(msg)
         normalized: list[JobResult] = []
         for item in raw_items:
             if not isinstance(item, dict):
@@ -253,15 +270,26 @@ class HimalayasProvider:
             )
             return
 
-        raw_items = _first(payload, "jobs", "results", "items", default=[])
-        total = int(_first(payload, "totalCount", "total", default=len(raw_items)))
-        page_size = max(1, int(_first(payload, "limit", "pageSize", default=20)))
-        total_pages = max(1, math.ceil(total / page_size))
-        yield ProviderPageBatch(
-            items=self._normalize_page_items(raw_items),
-            page=1,
-            total_pages=total_pages,
-        )
+        try:
+            raw_items = _first(payload, "jobs", "results", "items", default=[])
+            total = int(_first(payload, "totalCount", "total", default=len(raw_items)))
+            page_size = max(1, int(_first(payload, "limit", "pageSize", default=20)))
+            total_pages = max(1, math.ceil(total / page_size))
+            first_batch = ProviderPageBatch(
+                items=self._normalize_page_items(raw_items),
+                page=1,
+                total_pages=total_pages,
+            )
+        except (TypeError, ValueError):
+            logger.debug("Himalayas page 1 could not be processed", exc_info=True)
+            yield ProviderPageBatch(
+                items=[],
+                page=1,
+                total_pages=1,
+                warnings=("Himalayas page 1 failed",),
+            )
+            return
+        yield first_batch
 
         if total_pages <= 1:
             return
@@ -269,55 +297,64 @@ class HimalayasProvider:
         queue: asyncio.Queue[int | None] = asyncio.Queue()
         for page in range(2, total_pages + 1):
             queue.put_nowait(page)
-        output: asyncio.Queue[tuple[int, list[JobResult], tuple[str, ...]] | None] = (
-            asyncio.Queue()
-        )
+        output: asyncio.Queue[ProviderPageBatch | None] = asyncio.Queue()
+        worker_count = min(self._concurrency, total_pages - 1)
+        for _ in range(worker_count):
+            queue.put_nowait(None)
 
         async def worker() -> None:
-            while True:
-                page = await queue.get()
-                try:
+            try:
+                while True:
+                    page = await queue.get()
                     if page is None:
                         return
-                    page_payload, page_warning = await self._request_page(filters, page)
-                    if page_payload is None:
-                        await output.put(
-                            (
-                                page,
-                                [],
-                                (page_warning or f"Himalayas page {page} failed",),
-                            )
+                    try:
+                        batch = await self._fetch_batch(filters, page, total_pages)
+                    except Exception:
+                        logger.debug(
+                            "Himalayas page %s could not be processed",
+                            page,
+                            exc_info=True,
                         )
-                    else:
-                        items = _first(
-                            page_payload, "jobs", "results", "items", default=[]
+                        batch = ProviderPageBatch(
+                            items=[],
+                            page=page,
+                            total_pages=total_pages,
+                            warnings=(f"Himalayas page {page} failed",),
                         )
-                        await output.put(
-                            (
-                                page,
-                                self._normalize_page_items(items),
-                                (),
-                            )
-                        )
-                finally:
-                    queue.task_done()
+                    output.put_nowait(batch)
+            finally:
+                # A worker that stops for any reason still releases the consumer.
+                output.put_nowait(None)
 
-        worker_count = min(self._concurrency, total_pages - 1)
         workers = [asyncio.create_task(worker()) for _ in range(worker_count)]
         try:
-            for _ in range(total_pages - 1):
+            finished = 0
+            while finished < worker_count:
                 result = await output.get()
                 if result is None:
+                    finished += 1
                     continue
-                page, items, warnings = result
-                yield ProviderPageBatch(
-                    items=items,
-                    page=page,
-                    total_pages=total_pages,
-                    warnings=warnings,
-                )
+                yield result
         finally:
-            for _ in workers:
-                queue.put_nowait(None)
-            await queue.join()
+            for task in workers:
+                task.cancel()
             await asyncio.gather(*workers, return_exceptions=True)
+
+    async def _fetch_batch(
+        self, filters: SearchFilters, page: int, total_pages: int
+    ) -> ProviderPageBatch:
+        payload, warning = await self._request_page(filters, page)
+        if payload is None:
+            return ProviderPageBatch(
+                items=[],
+                page=page,
+                total_pages=total_pages,
+                warnings=(warning or f"Himalayas page {page} failed",),
+            )
+        raw_items = _first(payload, "jobs", "results", "items", default=[])
+        return ProviderPageBatch(
+            items=self._normalize_page_items(raw_items),
+            page=page,
+            total_pages=total_pages,
+        )

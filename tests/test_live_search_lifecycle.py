@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -50,3 +51,22 @@ def test_eviction_respects_ttl() -> None:
     started = manager.start(uuid4(), SearchFilters())
     manager.evict_expired()
     assert started.state.id in manager.evicted
+
+
+@pytest.mark.asyncio
+async def test_eviction_loop_evicts_expired_states() -> None:
+    manager = LiveSearchManager(
+        provider=FakeProvider(total_pages=1, items_per_page=0),
+        settings=Settings(
+            search_state_ttl_minutes=0,
+            search_eviction_interval_seconds=1,
+        ),
+    )
+    started = manager.start(uuid4(), SearchFilters())
+    manager.start_background_tasks()
+    for _ in range(40):
+        await asyncio.sleep(0.1)
+        if started.state.id in manager.evicted:
+            break
+    assert started.state.id in manager.evicted
+    await manager.close()

@@ -15,6 +15,7 @@ from jobs_back.providers.sanitize import strip_html
         (1700000000, datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)),
         (1700000000000, datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)),
         ("2024-01-15T10:00:00Z", datetime(2024, 1, 15, 10, 0, tzinfo=UTC)),
+        ("1700000000", datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)),
     ],
 )
 def test_timestamp_normalization(raw: object, expected: datetime) -> None:
@@ -122,3 +123,52 @@ def test_description_html_is_stripped() -> None:
     assert job is not None
     assert job.description == "Build systems"
     assert strip_html("<a href='x'>Link</a>") == "Link"
+
+
+def test_guid_is_the_stable_identity() -> None:
+    job = normalize_job(
+        {
+            "id": "internal-42",
+            "guid": "https://himalayas.app/jobs/engineer-at-acme",
+            "title": "Engineer",
+        }
+    )
+    assert job is not None
+    assert job.provider_job_id == "https://himalayas.app/jobs/engineer-at-acme"
+
+
+def test_empty_application_link_falls_back_to_the_next_link() -> None:
+    job = normalize_job(
+        {
+            "guid": "job-1",
+            "title": "Engineer",
+            "applicationLink": "",
+            "url": "https://himalayas.app/jobs/job-1",
+        }
+    )
+    assert job is not None
+    assert str(job.job_url) == "https://himalayas.app/jobs/job-1"
+
+
+def test_unusable_link_skips_the_row_instead_of_raising() -> None:
+    assert (
+        normalize_job(
+            {"guid": "job-1", "title": "Engineer", "applicationLink": "not a url"}
+        )
+        is None
+    )
+
+
+def test_unknown_salary_period_drops_the_amount() -> None:
+    job = normalize_job(
+        {
+            "guid": "job-1",
+            "title": "Engineer",
+            "salaryPeriod": "per sprint",
+            "minSalary": 5000,
+            "maxSalary": 9000,
+        }
+    )
+    assert job is not None
+    assert job.salary_min_annual is None
+    assert job.salary_max_annual is None

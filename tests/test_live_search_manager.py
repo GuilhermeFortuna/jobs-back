@@ -153,3 +153,59 @@ def test_evicted_search_returns_410() -> None:
     with pytest.raises(SearchExpiredError):
         manager.page(first.state.id, 1, 25)
     assert manager.page(second.state.id, 1, 25) is not None
+
+
+@pytest.mark.asyncio
+async def test_search_without_matches_completes_instead_of_failing() -> None:
+    provider = FakeProvider(total_pages=2, items_per_page=1)
+    manager = LiveSearchManager(provider=provider)
+    started = manager.start(uuid4(), SearchFilters(minimum_salary=10_000_000))
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(started.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    final = manager.page(started.state.id, 1, 25)
+    assert final is not None
+    assert final.status == "complete"
+    assert final.total == 0
+    assert final.warnings == []
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_progress_never_exceeds_one_when_provider_overruns() -> None:
+    provider = FakeProvider(
+        total_pages=1, items_per_page=1, completion_order=[1, 2, 3], delay=0.03
+    )
+    manager = LiveSearchManager(provider=provider)
+    started = manager.start(uuid4(), SearchFilters())
+    seen: list[float] = []
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(started.state.id, 1, 25)
+        assert snapshot is not None
+        seen.append(snapshot.progress)
+        if snapshot.is_complete:
+            break
+    assert max(seen) <= 1
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_search_is_not_reused_within_the_reuse_window() -> None:
+    provider = FakeProvider(total_pages=1, fail_pages=frozenset({1}))
+    manager = LiveSearchManager(provider=provider)
+    profile_id = uuid4()
+    filters = SearchFilters()
+    first = manager.start(profile_id, filters)
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(first.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    second = manager.start(profile_id, filters)
+    assert second.state.id != first.state.id
+    await manager.close()

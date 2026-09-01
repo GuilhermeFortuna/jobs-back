@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 
@@ -83,5 +85,58 @@ async def test_partial_page_failure_yields_warning() -> None:
     batches = [batch async for batch in provider.pages(SearchFilters())]
     assert len(batches) == 2
     assert batches[0].items
+    assert batches[1].warnings
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_unusable_row_on_later_page_does_not_stall() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params.get("page", "1"))
+        if page == 2:
+            return httpx.Response(
+                200,
+                json={
+                    "jobs": [
+                        {"guid": "job-2-0", "title": "Role", "applicationLink": "nope"}
+                    ],
+                    "totalCount": 40,
+                    "limit": 20,
+                },
+            )
+        return httpx.Response(200, json=_payload(page))
+
+    provider = HimalayasProvider(concurrency=2)
+    provider._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="https://himalayas.app"
+    )
+
+    async def collect() -> list:
+        return [batch async for batch in provider.pages(SearchFilters())]
+
+    batches = await asyncio.wait_for(collect(), timeout=5)
+    assert len(batches) == 2
+    assert batches[1].items == []
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_malformed_later_page_yields_a_warning_instead_of_hanging() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params.get("page", "1"))
+        if page == 2:
+            return httpx.Response(200, json={"jobs": 7, "totalCount": 40, "limit": 20})
+        return httpx.Response(200, json=_payload(page))
+
+    provider = HimalayasProvider(concurrency=2)
+    provider._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler), base_url="https://himalayas.app"
+    )
+
+    async def collect() -> list:
+        return [batch async for batch in provider.pages(SearchFilters())]
+
+    batches = await asyncio.wait_for(collect(), timeout=5)
+    assert len(batches) == 2
     assert batches[1].warnings
     await provider.close()

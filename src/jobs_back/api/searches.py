@@ -15,7 +15,7 @@ from jobs_back.schemas.discovery import (
     SearchRefreshPage,
 )
 from jobs_back.search.live import LiveSearchManager, SearchStartResult
-from jobs_back.services.exceptions import SearchExpiredError
+from jobs_back.services.exceptions import NotFoundError, SearchExpiredError
 
 router = APIRouter(tags=["search"])
 
@@ -29,11 +29,14 @@ def _search_page_or_error(
     search_id: UUID,
     page: int,
     page_size: int,
+    profile_id: UUID,
 ) -> SearchPage:
     try:
-        result = manager.page(search_id, page, page_size)
+        result = manager.page(search_id, page, page_size, profile_id)
     except SearchExpiredError as exc:
         raise HTTPException(status.HTTP_410_GONE, str(exc)) from exc
+    except NotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     if result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Search not found")
     return result
@@ -44,8 +47,11 @@ def _refresh_page(
     result: SearchStartResult,
     page: int,
     page_size: int,
+    profile_id: UUID,
 ) -> SearchRefreshPage:
-    snapshot = _search_page_or_error(manager, result.state.id, page, page_size)
+    snapshot = _search_page_or_error(
+        manager, result.state.id, page, page_size, profile_id
+    )
     return SearchRefreshPage(
         **snapshot.model_dump(),
         previous_search_id=result.previous_search_id,
@@ -68,24 +74,25 @@ async def create_search(
         raise HTTPException(404, "Profile not found")
     filters = body.filters or SearchFilters.model_validate(profile.preferences)
     started = manager.start(profile.id, filters)
-    return _search_page_or_error(manager, started.state.id, 1, 25)
+    return _search_page_or_error(manager, started.state.id, 1, 25, profile.id)
 
 
 @router.get(
     "/searches/{search_id}",
     response_model=SearchPage,
     responses={
-        404: {"description": "Search not found"},
+        404: {"description": "Search not found for this profile"},
         410: {"description": "Search expired or evicted"},
     },
 )
 def get_search(
     search_id: UUID,
+    profile_id: Annotated[UUID, Query()],
     manager: Annotated[LiveSearchManager, Depends(get_manager)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> SearchPage:
-    return _search_page_or_error(manager, search_id, page, page_size)
+    return _search_page_or_error(manager, search_id, page, page_size, profile_id)
 
 
 @router.post(
@@ -108,4 +115,4 @@ async def refresh_default_search(
     started = manager.start(
         profile.id, SearchFilters.model_validate(profile.preferences), force=True
     )
-    return _refresh_page(manager, started, 1, 25)
+    return _refresh_page(manager, started, 1, 25, profile.id)

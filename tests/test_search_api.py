@@ -63,7 +63,7 @@ def test_get_search_eventually_completes(search_api_client: SearchApiClient) -> 
     search_id = created.json()["search_id"]
     final = None
     for _ in range(50):
-        response = client.get(f"/searches/{search_id}")
+        response = client.get(f"/searches/{search_id}?profile_id={profile_id}")
         assert response.status_code == 200
         final = response.json()
         if final["is_complete"]:
@@ -75,7 +75,8 @@ def test_get_search_eventually_completes(search_api_client: SearchApiClient) -> 
 
 def test_get_missing_search_returns_404(search_api_client: SearchApiClient) -> None:
     client, _ = search_api_client
-    response = client.get(f"/searches/{uuid4()}")
+    profile_id = _create_profile(client, "Missing")
+    response = client.get(f"/searches/{uuid4()}?profile_id={profile_id}")
     assert response.status_code == 404
 
 
@@ -85,7 +86,7 @@ def test_get_evicted_search_returns_410(search_api_client: SearchApiClient) -> N
     created = client.post("/searches", json={"profile_id": profile_id})
     search_id = UUID(created.json()["search_id"])
     manager._evict(search_id)
-    response = client.get(f"/searches/{search_id}")
+    response = client.get(f"/searches/{search_id}?profile_id={profile_id}")
     assert response.status_code == 410
 
 
@@ -95,17 +96,44 @@ def test_refresh_returns_stale_metadata(search_api_client: SearchApiClient) -> N
     first = client.post(f"/profiles/{profile_id}/default-search/refresh")
     search_id = first.json()["search_id"]
     for _ in range(50):
-        if client.get(f"/searches/{search_id}").json()["is_complete"]:
+        polled = client.get(f"/searches/{search_id}?profile_id={profile_id}")
+        if polled.json()["is_complete"]:
             break
     second = client.post(f"/profiles/{profile_id}/default-search/refresh")
     assert second.status_code == 202
     body = second.json()
     assert body["previous_search_id"] == search_id
     assert body["serving_search_id"] == search_id
-    assert client.get(f"/searches/{search_id}").status_code == 200
+    assert (
+        client.get(f"/searches/{search_id}?profile_id={profile_id}").status_code == 200
+    )
 
 
 def test_invalid_page_size_returns_422(search_api_client: SearchApiClient) -> None:
     client, _ = search_api_client
-    response = client.get(f"/searches/{uuid4()}?page_size=101")
+    profile_id = _create_profile(client, "Paging")
+    response = client.get(f"/searches/{uuid4()}?profile_id={profile_id}&page_size=101")
     assert response.status_code == 422
+
+
+def test_search_page_requires_the_owning_profile(
+    search_api_client: SearchApiClient,
+) -> None:
+    client, _ = search_api_client
+    owner_id = _create_profile(client, "Owner")
+    other_id = _create_profile(client, "Other")
+    created = client.post("/searches", json={"profile_id": owner_id})
+    search_id = created.json()["search_id"]
+
+    assert client.get(f"/searches/{search_id}?profile_id={owner_id}").status_code == 200
+    assert client.get(f"/searches/{search_id}?profile_id={other_id}").status_code == 404
+
+
+def test_search_page_without_a_profile_is_rejected(
+    search_api_client: SearchApiClient,
+) -> None:
+    client, _ = search_api_client
+    profile_id = _create_profile(client, "Anonymous")
+    created = client.post("/searches", json={"profile_id": profile_id})
+    search_id = created.json()["search_id"]
+    assert client.get(f"/searches/{search_id}").status_code == 422

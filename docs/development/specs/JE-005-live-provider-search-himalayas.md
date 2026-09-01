@@ -41,7 +41,9 @@ background loading in the application process.
 
 ### `GET /searches/{search_id}`
 
-Accepts one-based `page` and `page_size` from 1 through 100. A response contains:
+Requires the owning `profile_id` and accepts one-based `page` and `page_size`
+from 1 through 100. A search belonging to another profile answers `404`.
+A response contains:
 
 ```json
 {

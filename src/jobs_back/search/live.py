@@ -115,7 +115,11 @@ class LiveSearchManager:
             existing_id = self.latest.get(key)
             if existing_id:
                 existing = self.states.get(existing_id)
-                if existing and datetime.now(UTC) - existing.created_at < REUSE_WINDOW:
+                if (
+                    existing
+                    and existing.status != "failed"
+                    and datetime.now(UTC) - existing.created_at < REUSE_WINDOW
+                ):
                     return SearchStartResult(
                         state=existing,
                         serving_search_id=existing_id,
@@ -192,7 +196,7 @@ class LiveSearchManager:
             self.latest[key] = refresh_id
 
     async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
-        collected_any = False
+        succeeded_pages = 0
         try:
             async for batch in self.provider.pages(state.filters):
                 filtered = self._filter(batch.items, state.filters)
@@ -203,11 +207,13 @@ class LiveSearchManager:
                     state.checked_count += len(batch.items)
                     state.completed_pages += 1
                     if state.expected_pages:
-                        state.progress = state.completed_pages / state.expected_pages
+                        state.progress = min(
+                            1.0, state.completed_pages / state.expected_pages
+                        )
                     if batch.warnings:
                         state.warnings.extend(batch.warnings)
-                    if filtered:
-                        collected_any = True
+                    else:
+                        succeeded_pages += 1
 
                 if key in self.refreshing and self.refreshing[key] == state.id:
                     stale_id = self.latest.get(key)
@@ -219,7 +225,7 @@ class LiveSearchManager:
                     self._sort, state.items, state.filters
                 )
                 state.progress = 1
-                if collected_any:
+                if succeeded_pages:
                     state.status = "complete"
                 else:
                     state.status = "failed"
@@ -232,7 +238,7 @@ class LiveSearchManager:
             raise
         except Exception as exc:
             async with state.lock:
-                if collected_any or state.items:
+                if succeeded_pages or state.items:
                     state.items = await asyncio.to_thread(
                         self._sort, state.items, state.filters
                     )
@@ -275,12 +281,21 @@ class LiveSearchManager:
             )
         return items
 
-    def page(self, search_id: UUID, page: int, page_size: int) -> SearchPage | None:
+    def page(
+        self,
+        search_id: UUID,
+        page: int,
+        page_size: int,
+        profile_id: UUID | None = None,
+    ) -> SearchPage | None:
+        """Read one page. Callers outside the process must pass ``profile_id``."""
         if search_id in self.evicted:
             raise SearchExpiredError("Search not found or expired")
         state = self.states.get(search_id)
         if state is None:
             return None
+        if profile_id is not None and state.profile_id != profile_id:
+            raise NotFoundError("Search not found for this profile")
         start = (page - 1) * page_size
         complete = state.status in {"complete", "failed"}
         return SearchPage(
@@ -345,7 +360,7 @@ class LiveSearchManager:
                 )
 
     async def _run_eviction_loop(self) -> None:
-        interval = max(30, self._settings.search_eviction_interval_seconds)
+        interval = max(1, self._settings.search_eviction_interval_seconds)
         while not self._closed:
             try:
                 await asyncio.sleep(interval)
