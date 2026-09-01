@@ -67,7 +67,7 @@ def register_fake_adapter(
     def factory(settings: Settings) -> ProviderAdapter:
         if require_config_key is not None:
             config = settings.provider_config.get(provider_key)
-            if not config or require_config_key not in config:
+            if not config or require_config_key not in config.options:
                 raise AdapterConfigurationError(
                     f"Missing config for provider {provider_key!r}",
                 )

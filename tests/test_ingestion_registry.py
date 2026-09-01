@@ -72,7 +72,11 @@ def test_factory_receives_settings() -> None:
         "configured",
         require_config_key="api_key",
     )
-    settings = Settings(provider_config_json='{"configured": {"api_key": "x"}}')
+    settings = Settings(
+        provider_config_json=(
+            '{"configured": {"enabled": true, "options": {"api_key": "x"}}}'
+        )
+    )
     adapter = resolve("configured", settings)
     assert adapter.provider_key == "configured"
 

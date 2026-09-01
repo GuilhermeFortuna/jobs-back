@@ -1,0 +1,25 @@
+{
+  "apiVersion": "2.2.16",
+  "jobCount": 1,
+  "jobs": [
+    {
+      "id": 152312,
+      "url": "https://jobicy.com/jobs/152312-example",
+      "jobTitle": "Product Data Analyst",
+      "companyName": "Binance",
+      "companyLogo": "https://jobicy.com/logo.jpg",
+      "jobIndustry": ["Data Science & Analytics"],
+      "jobType": ["Internship"],
+      "jobGeo": "Hong Kong",
+      "jobLevel": "Senior",
+      "jobExcerpt": "Analyze product data.",
+      "jobDescription": "<p>Analyze product data in depth.</p>",
+      "pubDate": "2026-09-01T12:01:55+00:00",
+      "salaryMin": 80000,
+      "salaryMax": 120000,
+      "salaryCurrency": "USD",
+      "salaryPeriod": "yearly"
+    }
+  ],
+  "success": true
+}

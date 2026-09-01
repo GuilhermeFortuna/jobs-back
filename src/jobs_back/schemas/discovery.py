@@ -101,16 +101,25 @@ class SearchCreate(BaseModel):
     filters: SearchFilters | None = None
 
 
+class ProviderSearchStatus(BaseModel):
+    provider: str
+    status: Literal["loading", "complete", "failed"]
+    progress: float = Field(ge=0, le=1)
+    checked_count: int = 0
+
+
 class SearchPage(BaseModel):
     search_id: UUID
     status: Literal["loading", "complete", "failed"]
     progress: float = Field(ge=0, le=1)
     checked_count: int = 0
+    providers: list[ProviderSearchStatus] = Field(default_factory=list)
     items: list[JobResult]
     page: int
     page_size: int
     total: int | None = None
     is_complete: bool
+    is_partial: bool = False
     warnings: list[str] = Field(default_factory=list)
 
 

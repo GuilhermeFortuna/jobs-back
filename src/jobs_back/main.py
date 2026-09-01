@@ -7,7 +7,7 @@ from jobs_back.api.profiles import router as profiles_router
 from jobs_back.api.searches import router as searches_router
 from jobs_back.config import get_settings
 from jobs_back.db import SessionLocal
-from jobs_back.providers.himalayas import HimalayasProvider
+from jobs_back.providers.registry import build_providers, enabled_provider_count
 from jobs_back.search.live import LiveSearchManager
 
 
@@ -16,12 +16,11 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        providers = build_providers(settings)
         manager = LiveSearchManager(
-            provider=HimalayasProvider(
-                concurrency=settings.himalayas_concurrency,
-                timeout=settings.himalayas_timeout_seconds,
-            ),
+            providers=providers,
             settings=settings,
+            enabled_provider_count=enabled_provider_count(settings),
         )
         app.state.search_manager = manager
         if settings.app_env != "test":

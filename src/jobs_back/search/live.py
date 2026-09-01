@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -12,7 +13,12 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from jobs_back.providers.himalayas import HimalayasProvider
 from jobs_back.providers.protocol import ProgressiveProvider
-from jobs_back.schemas.discovery import JobResult, SearchFilters, SearchPage
+from jobs_back.schemas.discovery import (
+    JobResult,
+    ProviderSearchStatus,
+    SearchFilters,
+    SearchPage,
+)
 from jobs_back.services.exceptions import (
     NotFoundError,
     SearchExpiredError,
@@ -47,6 +53,17 @@ def filter_key(profile_id: UUID, filters: SearchFilters) -> tuple[UUID, str]:
 
 
 @dataclass
+class ProviderTracker:
+    provider: str
+    status: str = "loading"
+    expected_pages: int = 0
+    completed_pages: int = 0
+    checked_count: int = 0
+    progress: float = 0.0
+    had_success: bool = False
+
+
+@dataclass
 class SearchState:
     id: UUID
     profile_id: UUID
@@ -54,8 +71,8 @@ class SearchState:
     status: str = "loading"
     progress: float = 0
     checked_count: int = 0
-    expected_pages: int = 0
-    completed_pages: int = 0
+    is_partial: bool = False
+    provider_trackers: dict[str, ProviderTracker] = field(default_factory=dict)
     items: list[JobResult] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -78,13 +95,23 @@ class LiveSearchManager:
     def __init__(
         self,
         provider: ProgressiveProvider | None = None,
+        providers: Sequence[ProgressiveProvider] | None = None,
         *,
         settings: Settings | None = None,
+        enabled_provider_count: int | None = None,
     ) -> None:
         from jobs_back.config import get_settings
 
         self._settings = settings or get_settings()
-        self.provider = provider or HimalayasProvider()
+        if providers is not None:
+            self.providers = list(providers)
+        elif provider is not None:
+            self.providers = [provider]
+        else:
+            self.providers = [HimalayasProvider()]
+        provider_count = enabled_provider_count or len(self.providers)
+        self._max_items = self._settings.effective_search_max_items(provider_count)
+        self._max_states = self._settings.effective_search_max_states(provider_count)
         self.states: dict[UUID, SearchState] = {}
         self.latest: dict[tuple[UUID, str], UUID] = {}
         self.refreshing: dict[tuple[UUID, str], UUID] = {}
@@ -137,6 +164,10 @@ class LiveSearchManager:
             id=uuid4(),
             profile_id=profile_id,
             filters=canonical_filters(filters),
+            provider_trackers={
+                provider.key: ProviderTracker(provider=provider.key)
+                for provider in self.providers
+            },
         )
         self.states[state.id] = state
 
@@ -195,40 +226,116 @@ class LiveSearchManager:
         if refresh_id is not None:
             self.latest[key] = refresh_id
 
-    async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
-        succeeded_pages = 0
+    @staticmethod
+    def _aggregate_progress(trackers: dict[str, ProviderTracker]) -> float:
+        expected = sum(tracker.expected_pages for tracker in trackers.values())
+        completed = sum(tracker.completed_pages for tracker in trackers.values())
+        if expected <= 0:
+            return 0.0
+        return min(1.0, completed / expected)
+
+    def _apply_batch(
+        self,
+        state: SearchState,
+        tracker: ProviderTracker,
+        batch_items: list[JobResult],
+        batch: object,
+        *,
+        raw_count: int,
+    ) -> None:
+        from jobs_back.providers.protocol import ProviderPageBatch
+
+        assert isinstance(batch, ProviderPageBatch)
+        tracker.expected_pages = max(tracker.expected_pages, batch.total_pages)
+        tracker.completed_pages += 1
+        tracker.checked_count += raw_count
+        if batch.warnings:
+            for warning in batch.warnings:
+                state.warnings.append(f"{tracker.provider}: {warning}")
+        else:
+            tracker.had_success = True
+        if tracker.expected_pages:
+            tracker.progress = min(
+                1.0,
+                tracker.completed_pages / tracker.expected_pages,
+            )
+        state.checked_count = sum(
+            t.checked_count for t in state.provider_trackers.values()
+        )
+        state.progress = max(
+            state.progress,
+            self._aggregate_progress(state.provider_trackers),
+        )
+
+    async def _consume_provider(
+        self,
+        state: SearchState,
+        search_key: tuple[UUID, str],
+        provider: ProgressiveProvider,
+    ) -> None:
+        tracker = state.provider_trackers[provider.key]
         try:
-            async for batch in self.provider.pages(state.filters):
+            async for batch in provider.pages(state.filters):
                 filtered = self._filter(batch.items, state.filters)
                 async with state.lock:
-                    if state.expected_pages == 0:
-                        state.expected_pages = batch.total_pages
                     state.items.extend(filtered)
-                    state.checked_count += len(batch.items)
-                    state.completed_pages += 1
-                    if state.expected_pages:
-                        state.progress = min(
-                            1.0, state.completed_pages / state.expected_pages
-                        )
-                    if batch.warnings:
-                        state.warnings.extend(batch.warnings)
-                    else:
-                        succeeded_pages += 1
+                    self._apply_batch(
+                        state,
+                        tracker,
+                        filtered,
+                        batch,
+                        raw_count=len(batch.items),
+                    )
 
-                if key in self.refreshing and self.refreshing[key] == state.id:
-                    stale_id = self.latest.get(key)
+                refreshing = search_key in self.refreshing
+                if refreshing and self.refreshing[search_key] == state.id:
+                    stale_id = self.latest.get(search_key)
                     if stale_id and self._should_promote(stale_id, state.id):
-                        self._promote_refresh(key)
+                        self._promote_refresh(search_key)
+
+            async with state.lock:
+                tracker.progress = 1.0
+                if tracker.had_success:
+                    tracker.status = "complete"
+                else:
+                    tracker.status = "failed"
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            async with state.lock:
+                tracker.status = "failed"
+                tracker.progress = 1.0
+                state.warnings.append(f"{provider.key}: provider unavailable ({exc})")
+            logger.debug("Provider %s failed", provider.key, exc_info=exc)
+
+    async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
+        try:
+            tasks = [
+                asyncio.create_task(self._consume_provider(state, key, provider))
+                for provider in self.providers
+            ]
+            await asyncio.gather(*tasks, return_exceptions=True)
 
             async with state.lock:
                 state.items = await asyncio.to_thread(
                     self._sort, state.items, state.filters
                 )
-                state.progress = 1
-                if succeeded_pages:
+                state.progress = 1.0
+                for tracker in state.provider_trackers.values():
+                    tracker.progress = 1.0
+
+                any_success = any(
+                    tracker.had_success for tracker in state.provider_trackers.values()
+                )
+                if any_success:
                     state.status = "complete"
+                    state.is_partial = any(
+                        tracker.status == "failed"
+                        for tracker in state.provider_trackers.values()
+                    )
                 else:
                     state.status = "failed"
+                    state.is_partial = False
                     if not state.warnings:
                         state.warnings.append("Search returned no usable results")
 
@@ -236,18 +343,6 @@ class LiveSearchManager:
                 self._promote_refresh(key)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
-            async with state.lock:
-                if succeeded_pages or state.items:
-                    state.items = await asyncio.to_thread(
-                        self._sort, state.items, state.filters
-                    )
-                    state.progress = 1
-                    state.status = "complete"
-                    state.warnings.append(f"Search stopped early: {exc}")
-                else:
-                    state.status = "failed"
-                    state.warnings.append(f"Search failed: {exc}")
 
     @staticmethod
     def _filter(items: list[JobResult], filters: SearchFilters) -> list[JobResult]:
@@ -268,18 +363,38 @@ class LiveSearchManager:
         return filtered
 
     @staticmethod
-    def _sort(items: list[JobResult], filters: SearchFilters) -> list[JobResult]:
+    def _tiebreak(item: JobResult) -> tuple[str, str]:
+        return (item.provider, item.provider_job_id)
+
+    @classmethod
+    def _sort(cls, items: list[JobResult], filters: SearchFilters) -> list[JobResult]:
         if filters.sort == "newest":
             return sorted(
                 items,
-                key=lambda item: item.posted_at or datetime.min.replace(tzinfo=UTC),
+                key=lambda item: (
+                    item.posted_at or datetime.min.replace(tzinfo=UTC),
+                    cls._tiebreak(item),
+                ),
                 reverse=True,
             )
         if filters.sort == "salary":
             return sorted(
-                items, key=lambda item: item.salary_max_annual or 0, reverse=True
+                items,
+                key=lambda item: (item.salary_max_annual or 0, cls._tiebreak(item)),
+                reverse=True,
             )
-        return items
+        return sorted(items, key=cls._tiebreak)
+
+    def _provider_statuses(self, state: SearchState) -> list[ProviderSearchStatus]:
+        return [
+            ProviderSearchStatus(
+                provider=tracker.provider,
+                status=tracker.status,  # type: ignore[arg-type]
+                progress=tracker.progress,
+                checked_count=tracker.checked_count,
+            )
+            for tracker in state.provider_trackers.values()
+        ]
 
     def page(
         self,
@@ -300,14 +415,16 @@ class LiveSearchManager:
         complete = state.status in {"complete", "failed"}
         return SearchPage(
             search_id=state.id,
-            status=state.status,
+            status=state.status,  # type: ignore[arg-type]
             progress=state.progress,
             checked_count=state.checked_count,
+            providers=self._provider_statuses(state),
             items=state.items[start : start + page_size],
             page=page,
             page_size=page_size,
             total=len(state.items) if complete else None,
             is_complete=complete,
+            is_partial=state.is_partial,
             warnings=state.warnings,
         )
 
@@ -368,6 +485,18 @@ class LiveSearchManager:
             except asyncio.CancelledError:
                 raise
 
+    def _is_budget_protected(self, search_id: UUID) -> bool:
+        state = self.states.get(search_id)
+        if state is None:
+            return False
+        if state.status == "loading":
+            return True
+        for key, refresh_id in self.refreshing.items():
+            stale_id = self.latest.get(key)
+            if stale_id == search_id and refresh_id != search_id:
+                return True
+        return False
+
     def evict_expired(self) -> None:
         now = datetime.now(UTC)
         ttl = timedelta(minutes=self._settings.search_state_ttl_minutes)
@@ -383,13 +512,15 @@ class LiveSearchManager:
 
         for created_at, search_id in candidates:
             if now - created_at >= ttl:
-                to_evict.add(search_id)
-
-        while len(self.states) - len(to_evict) > self._settings.search_max_states:
-            for _, search_id in candidates:
-                if search_id not in to_evict:
+                if not self._is_budget_protected(search_id):
                     to_evict.add(search_id)
-                    break
+
+        while len(self.states) - len(to_evict) > self._max_states:
+            for _, search_id in candidates:
+                if search_id in to_evict or self._is_budget_protected(search_id):
+                    continue
+                to_evict.add(search_id)
+                break
             else:
                 break
 
@@ -399,9 +530,11 @@ class LiveSearchManager:
             if search_id in self.states
         )
         for _, search_id in candidates:
-            if remaining_items <= self._settings.search_max_items:
+            if remaining_items <= self._max_items:
                 break
             if search_id in to_evict or search_id not in self.states:
+                continue
+            if self._is_budget_protected(search_id):
                 continue
             to_evict.add(search_id)
             remaining_items -= len(self.states[search_id].items)
@@ -429,4 +562,5 @@ class LiveSearchManager:
         for task in self.tasks:
             task.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
-        await self.provider.close()
+        for provider in self.providers:
+            await provider.close()
