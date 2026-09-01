@@ -55,6 +55,29 @@ requested `newest`, `salary`, or `relevance` order, with a documented stable
 tiebreak so two providers returning equally ranked roles produce the same page
 on every run.
 
+## Index memory budget
+
+Retention limits are global, not per search. `SEARCH_MAX_ITEMS` caps the total
+items held across every live state and `SEARCH_MAX_STATES` caps the number of
+states; both are enforced by the eviction pass. Every retained item also holds
+its raw provider payload for library snapshot creation, so the true footprint of
+an item is larger than its search JSON.
+
+Fan-in multiplies the items an index holds by roughly the number of enabled
+providers. Inherited single-provider defaults would therefore make eviction
+discard warm indexes that are still in use, regressing the JE-005 warm-index
+design without any provider having failed.
+
+- Item and state budgets are re-derived for the enabled provider count rather
+  than inherited, and are documented alongside the other deployment settings.
+- The derivation starts from a measured per-item footprint that includes the
+  retained raw payload, not from an assumed item size.
+- Eviction remains age-and-budget based. Fan-in must never let an in-progress
+  search evict itself, its own not-yet-complete siblings, or the stale index a
+  refresh is still serving.
+- Consolidation under JE-008 reduces retained items and relaxes this pressure;
+  the budgets are derived for the unconsolidated case so JE-007 stands alone.
+
 ## Per-provider status
 
 Search responses carry a per-provider status block in addition to the existing
@@ -152,5 +175,9 @@ stay internal and remain available for library snapshot creation.
    responses.
 7. Completed multi-provider searches sort deterministically, including a stable
    tiebreak across providers.
-8. No multi-provider search creates or updates a PostgreSQL row, and JE-005
+8. Item and state budgets are re-derived from a measured per-item footprint for
+   the enabled provider count and documented for deployment, and a warm default
+   index survives fan-in across every enabled provider without being evicted by
+   the added volume alone.
+9. No multi-provider search creates or updates a PostgreSQL row, and JE-005
    reuse, refresh, warming, eviction, and shutdown behavior is unchanged.

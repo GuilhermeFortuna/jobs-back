@@ -13,6 +13,7 @@ on top of the completed JE-005 search runtime.
 | `providers/sanitize.py` | HTML stripping for descriptions | Reuse in both new adapters |
 | `search/live.py` | Reuse window, stale-while-refresh, promotion, local filters, final sort, TTL eviction, `resolve_job` | Extend `_populate` and progress accounting only; do not rewrite lifecycle, reuse, or eviction |
 | `config.py` `provider_config` | `PROVIDER_CONFIG_JSON` setting defined but never read | Activate as the registry source |
+| `config.py` `search_max_items` / `search_max_states` | Global caps of 100,000 items and 200 states across all live states, enforced by the eviction pass in `search/live.py` | Re-derive the defaults for the enabled provider count; keep the eviction algorithm unchanged |
 | `main.py` lifespan | Constructs one `HimalayasProvider` and one manager | Refactor to build a registry and pass every enabled adapter |
 | `schemas/discovery.py` | `SearchPage`, `SearchRefreshPage`, `JobResult` | Extend with the per-provider status block and `is_partial` |
 | `tests/helpers/fake_provider.py` | Single fake progressive provider | Extend to multi-provider fixtures with uneven and bulk page shapes |
@@ -44,6 +45,11 @@ unchanged.
 5. Update the lifespan to construct the registry, hand every adapter to one
    `LiveSearchManager`, and close all adapters on shutdown. Startup must not
    block on provider reachability.
+6. Measure the per-item memory footprint including the retained
+   `provider_payload`, then re-derive the `SEARCH_MAX_ITEMS` and
+   `SEARCH_MAX_STATES` defaults for the enabled provider count and document
+   them with the other deployment settings. Do not inherit the single-provider
+   values unexamined.
 
 ### Fan-in and progress
 
@@ -108,6 +114,9 @@ unchanged.
 - A database assertion that a multi-provider search creates no catalog or
   library rows, and profile-scope tests proving indexes still do not cross
   profiles.
+- Retention tests at the documented budgets proving a warm default index is not
+  evicted by fan-in volume alone, and that an in-progress search never evicts
+  itself, an incomplete sibling, or the stale index a refresh is serving.
 - Separately invoked live smoke tests for both new providers, marked so CI never
   depends on a public provider.
 
@@ -118,6 +127,7 @@ unchanged.
 - `./ci.sh lint` and `./ci.sh test` pass, the existing JE-005 suite still passes,
   and the 100,000-record benchmark shows no regression from fan-in.
 - The OpenAPI schema documents the per-provider status block and `is_partial`,
-  and the configured provider set is documented for deployment.
+  and the configured provider set and re-derived retention budgets are
+  documented for deployment with the measurement behind them recorded.
 - No deduplication, frontend, scheduling, persistence, or multi-instance
   behavior is added.
