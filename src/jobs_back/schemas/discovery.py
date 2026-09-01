@@ -23,6 +23,7 @@ class SearchFilters(BaseModel):
     worldwide: bool | None = None
     seniority: list[str] = Field(default_factory=list, max_length=10)
     employment_types: list[str] = Field(default_factory=list, max_length=10)
+    providers: list[str] = Field(default_factory=list, max_length=10)
     minimum_salary: int | None = Field(default=None, ge=0, le=10_000_000)
     posted_within_days: int | None = Field(default=None, ge=1, le=3650)
     sort: SearchSort = SearchSort.RELEVANCE

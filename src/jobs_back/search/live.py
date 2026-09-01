@@ -42,6 +42,7 @@ def canonical_filters(filters: SearchFilters) -> SearchFilters:
         worldwide=filters.worldwide,
         seniority=sorted(filters.seniority),
         employment_types=sorted(filters.employment_types),
+        providers=sorted(filters.providers),
         minimum_salary=filters.minimum_salary,
         posted_within_days=filters.posted_within_days,
         sort=filters.sort,
@@ -169,7 +170,7 @@ class LiveSearchManager:
             filters=canonical_filters(filters),
             provider_trackers={
                 provider.key: ProviderTracker(provider=provider.key)
-                for provider in self.providers
+                for provider in self._active_providers(filters)
             },
         )
         self.states[state.id] = state
@@ -325,11 +326,17 @@ class LiveSearchManager:
                 state.warnings.append(f"{provider.key}: provider unavailable ({exc})")
             logger.debug("Provider %s failed", provider.key, exc_info=exc)
 
+    def _active_providers(self, filters: SearchFilters) -> list[ProgressiveProvider]:
+        if not filters.providers:
+            return list(self.providers)
+        allowed = set(filters.providers)
+        return [provider for provider in self.providers if provider.key in allowed]
+
     async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
         try:
             tasks = [
                 asyncio.create_task(self._consume_provider(state, key, provider))
-                for provider in self.providers
+                for provider in self._active_providers(state.filters)
             ]
             await asyncio.gather(*tasks, return_exceptions=True)
 
