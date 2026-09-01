@@ -326,6 +326,24 @@ class LiveSearchManager:
                 state.warnings.append(f"{provider.key}: provider unavailable ({exc})")
             logger.debug("Provider %s failed", provider.key, exc_info=exc)
 
+    async def _complete_without_providers(self, state: SearchState) -> None:
+        """No enabled provider matched the filter: an empty search, not a failure.
+
+        A provider disabled by configuration can still be requested by a client,
+        so this must not read as a failed search.
+        """
+        available = {provider.key for provider in self.providers}
+        unavailable = sorted(set(state.filters.providers) - available)
+        async with state.lock:
+            state.items = []
+            state.progress = 1.0
+            state.status = "complete"
+            state.is_partial = False
+            if unavailable:
+                state.warnings.append(
+                    f"{', '.join(unavailable)}: provider is not enabled"
+                )
+
     def _active_providers(self, filters: SearchFilters) -> list[ProgressiveProvider]:
         if not filters.providers:
             return list(self.providers)
@@ -334,11 +352,18 @@ class LiveSearchManager:
 
     async def _populate(self, state: SearchState, key: tuple[UUID, str]) -> None:
         try:
+            active = self._active_providers(state.filters)
             tasks = [
                 asyncio.create_task(self._consume_provider(state, key, provider))
-                for provider in self._active_providers(state.filters)
+                for provider in active
             ]
             await asyncio.gather(*tasks, return_exceptions=True)
+
+            if not active:
+                await self._complete_without_providers(state)
+                if key in self.refreshing and self.refreshing[key] == state.id:
+                    self._promote_refresh(key)
+                return
 
             async with state.lock:
                 state.items = await asyncio.to_thread(
