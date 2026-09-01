@@ -13,6 +13,10 @@ class DuplicateProfileNameError(ProfileLibraryError):
     """Profile display name is already in use."""
 
 
+class InvalidSkillsError(ProfileLibraryError):
+    """Profile skills failed validation."""
+
+
 class SearchExpiredError(ProfileLibraryError):
     """Search identity is no longer available in the in-memory index."""
 

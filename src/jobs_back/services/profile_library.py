@@ -30,6 +30,7 @@ from jobs_back.services.library_dedup import (
     alternate_sources_payload,
     merged_alternate_sources,
 )
+from jobs_back.services.skills import skills_from_labels
 
 _DUPLICATE_PROFILE_NAME = "A profile with that name already exists"
 
@@ -132,6 +133,7 @@ def create_profile(session: Session, body: ProfileCreate) -> Profile:
     profile = Profile(
         display_name=body.display_name.strip(),
         preferences=body.preferences.model_dump(mode="json"),
+        skills=skills_from_labels([skill.label for skill in body.skills]),
     )
     session.add(profile)
     try:
@@ -150,19 +152,27 @@ def get_profile(session: Session, profile_id: UUID) -> Profile:
     return profile
 
 
-def update_profile(session: Session, profile_id: UUID, body: ProfilePatch) -> Profile:
+def update_profile(
+    session: Session, profile_id: UUID, body: ProfilePatch
+) -> tuple[Profile, bool]:
     profile = get_profile(session, profile_id)
+    skills_changed = False
     if body.display_name is not None:
         profile.display_name = body.display_name.strip()
     if body.preferences is not None:
         profile.preferences = body.preferences.model_dump(mode="json")
+    if body.skills is not None:
+        new_skills = skills_from_labels([skill.label for skill in body.skills])
+        if new_skills != profile.skills:
+            profile.skills = new_skills
+            skills_changed = True
     try:
         session.commit()
     except IntegrityError as exc:
         session.rollback()
         raise DuplicateProfileNameError(_DUPLICATE_PROFILE_NAME) from exc
     session.refresh(profile)
-    return profile
+    return profile, skills_changed
 
 
 def list_library_jobs(

@@ -121,6 +121,7 @@ class LiveSearchManager:
         self.refreshing: dict[tuple[UUID, str], UUID] = {}
         self.evicted: set[UUID] = set()
         self.tasks: set[asyncio.Task[None]] = set()
+        self._populate_tasks: dict[UUID, asyncio.Task[None]] = {}
         self._background_tasks: set[asyncio.Task[None]] = set()
         self._closed = False
 
@@ -197,7 +198,13 @@ class LiveSearchManager:
             return
         task = loop.create_task(coro)
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        self._populate_tasks[state.id] = task
+
+        def _clear_task(done: asyncio.Task[None]) -> None:
+            self.tasks.discard(done)
+            self._populate_tasks.pop(state.id, None)
+
+        task.add_done_callback(_clear_task)
 
     def serving_search_id(
         self, profile_id: UUID, filters: SearchFilters
@@ -533,6 +540,18 @@ class LiveSearchManager:
                 self.evict_expired()
             except asyncio.CancelledError:
                 raise
+
+    def discard_profile_searches(self, profile_id: UUID) -> None:
+        search_ids = [
+            search_id
+            for search_id, state in self.states.items()
+            if state.profile_id == profile_id
+        ]
+        for search_id in search_ids:
+            task = self._populate_tasks.pop(search_id, None)
+            if task is not None and not task.done():
+                task.cancel()
+            self._evict(search_id)
 
     def _is_budget_protected(self, search_id: UUID) -> bool:
         state = self.states.get(search_id)

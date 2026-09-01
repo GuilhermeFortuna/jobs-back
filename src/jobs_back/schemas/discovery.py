@@ -15,6 +15,17 @@ class SearchSort(StrEnum):
     SALARY = "salary"
 
 
+class SkillLabel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(min_length=1, max_length=60)
+
+
+class Skill(BaseModel):
+    label: str
+    token: str
+
+
 class SearchFilters(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -35,13 +46,19 @@ class SearchFilters(BaseModel):
 
 
 class ProfileCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     display_name: str = Field(min_length=1, max_length=80)
     preferences: SearchFilters = Field(default_factory=SearchFilters)
+    skills: list[SkillLabel] = Field(default_factory=list, max_length=50)
 
 
 class ProfilePatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     display_name: str | None = Field(default=None, min_length=1, max_length=80)
     preferences: SearchFilters | None = None
+    skills: list[SkillLabel] | None = None
 
 
 class ProfileRead(BaseModel):
@@ -50,6 +67,7 @@ class ProfileRead(BaseModel):
     id: UUID
     display_name: str
     preferences: SearchFilters
+    skills: list[Skill] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

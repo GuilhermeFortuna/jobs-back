@@ -22,6 +22,7 @@ from jobs_back.search.live import LiveSearchManager
 from jobs_back.services import profile_library as library
 from jobs_back.services.exceptions import (
     DuplicateProfileNameError,
+    InvalidSkillsError,
     NotFoundError,
     SearchExpiredError,
     SearchJobNotFoundError,
@@ -42,6 +43,10 @@ def _gone(detail: str) -> HTTPException:
     return HTTPException(status.HTTP_410_GONE, detail)
 
 
+def _unprocessable(detail: str) -> HTTPException:
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail)
+
+
 @router.get("", response_model=list[ProfileRead])
 def list_profiles(db: Annotated[Session, Depends(get_db)]) -> list[Profile]:
     return library.list_profiles(db)
@@ -60,6 +65,8 @@ def create_profile(
         return library.create_profile(db, body)
     except DuplicateProfileNameError as exc:
         raise _conflict(str(exc)) from exc
+    except InvalidSkillsError as exc:
+        raise _unprocessable(str(exc)) from exc
 
 
 @router.get(
@@ -83,14 +90,22 @@ def get_profile(profile_id: UUID, db: Annotated[Session, Depends(get_db)]) -> Pr
     },
 )
 def patch_profile(
-    body: ProfilePatch, profile_id: UUID, db: Annotated[Session, Depends(get_db)]
+    body: ProfilePatch,
+    profile_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    manager: Annotated[LiveSearchManager, Depends(get_manager)],
 ) -> Profile:
     try:
-        return library.update_profile(db, profile_id, body)
+        profile, skills_changed = library.update_profile(db, profile_id, body)
     except NotFoundError as exc:
         raise _not_found(str(exc)) from exc
     except DuplicateProfileNameError as exc:
         raise _conflict(str(exc)) from exc
+    except InvalidSkillsError as exc:
+        raise _unprocessable(str(exc)) from exc
+    if skills_changed:
+        manager.discard_profile_searches(profile_id)
+    return profile
 
 
 @router.get(
