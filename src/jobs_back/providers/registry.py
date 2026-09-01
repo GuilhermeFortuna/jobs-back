@@ -11,6 +11,18 @@ from jobs_back.providers.remoteok import RemoteOKProvider
 KNOWN_KEYS = ("himalayas", "remoteok", "jobicy")
 DEFAULT_ENABLED = KNOWN_KEYS
 
+# Human-readable provider names. The API serves these so a new adapter needs no
+# frontend change; unknown keys fall back to the key itself.
+PROVIDER_DISPLAY_NAMES = {
+    "himalayas": "Himalayas",
+    "remoteok": "Remote OK",
+    "jobicy": "Jobicy",
+}
+
+
+def provider_display_name(key: str) -> str:
+    return PROVIDER_DISPLAY_NAMES.get(key, key)
+
 
 def _coerce_int(value: Any, default: int) -> int:
     if isinstance(value, bool):

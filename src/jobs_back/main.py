@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from jobs_back.api.profiles import router as profiles_router
+from jobs_back.api.providers import router as providers_router
 from jobs_back.api.searches import router as searches_router
 from jobs_back.config import get_settings
 from jobs_back.db import SessionLocal
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(profiles_router)
+    app.include_router(providers_router)
     app.include_router(searches_router)
 
     @app.get("/health")

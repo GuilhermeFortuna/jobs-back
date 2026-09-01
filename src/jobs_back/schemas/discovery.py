@@ -117,6 +117,13 @@ class ProviderSearchStatus(BaseModel):
     checked_count: int = 0
 
 
+class ProviderDescriptor(BaseModel):
+    """An enabled provider a search will fan into."""
+
+    key: str
+    display_name: str
+
+
 class SearchPage(BaseModel):
     search_id: UUID
     status: Literal["loading", "complete", "failed"]
