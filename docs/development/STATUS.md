@@ -110,24 +110,15 @@ JE-016 is complete on branch `JE-016-design-system-foundation`.
 JE-017 is complete on branch `JE-017-redesign-resilient-test-contracts`
 (`jobs-front`).
 
-JE-018 is complete on branch `JE-018-primitive-layer-completion`
-(`jobs-front`; `STATUS.md` in `jobs-back`).
-
-**JE-018 pagination finding:** `@shadcn/pagination` is installed, but interactive
-page wiring is blocked without changing `use-job-scout.ts`. The hook always polls
-page 1 and exposes no `page` / `setPage`, while Batch 05 forbids hook/`src/lib`
-diffs and client-side slicing. A follow-up task must expose page control from the
-hook and pass `page` into `api.search` before AC 10 can go fully green. JE-020 may
-consume the installed primitive once that surface exists. This finding does **not**
-block JE-019.
-
 JE-016 and JE-017 became `READY` together once JE-015 was `DONE`, and ran in
 parallel — JE-016 substitutes tokens without restructuring markup, so it did
-not depend on JE-017. Both are now `DONE`, so JE-018 is `DONE` and JE-019 is
-`READY`.
+not depend on JE-017. Both are now `DONE`, so JE-018 is `READY`.
 
-JE-019 owns the shell files, so it precedes the other two surface tasks rather
-than competing with them for the same layout.
+JE-018 installs components against JE-016 tokens and lands the first structural
+changes, which require JE-017's converted assertions to be in place.
+
+JE-019 is `BLOCKED` on JE-018. It owns the shell files, so it precedes the other
+two surface tasks rather than competing with them for the same layout.
 
 JE-020 and JE-021 are `BLOCKED` on JE-019. They become `READY` together and own
 disjoint files, so they may run in parallel. JE-020 is authoritative for the
