@@ -71,6 +71,7 @@ class ProviderTracker:
     checked_count: int = 0
     progress: float = 0.0
     had_success: bool = False
+    incomplete: bool = False
 
 
 @dataclass
@@ -283,6 +284,8 @@ class LiveSearchManager:
         if batch.warnings:
             for warning in batch.warnings:
                 state.warnings.append(f"{tracker.provider}: {warning}")
+            if tracker.had_success:
+                tracker.incomplete = True
         else:
             tracker.had_success = True
         if tracker.expected_pages:
@@ -426,7 +429,7 @@ class LiveSearchManager:
                 if any_success:
                     state.status = "complete"
                     state.is_partial = any(
-                        tracker.status == "failed"
+                        tracker.status == "failed" or tracker.incomplete
                         for tracker in state.provider_trackers.values()
                     )
                 else:
@@ -436,7 +439,10 @@ class LiveSearchManager:
                         state.warnings.append("Search returned no usable results")
 
             if key in self.refreshing and self.refreshing[key] == state.id:
-                self._promote_refresh(key)
+                if state.status == "failed":
+                    self.refreshing.pop(key, None)
+                else:
+                    self._promote_refresh(key)
         except asyncio.CancelledError:
             raise
 

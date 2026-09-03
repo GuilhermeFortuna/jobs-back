@@ -181,6 +181,32 @@ async def test_request_budget_stops_paging() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_budget_resets_for_each_search() -> None:
+    requests = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(200, json=_sample_page(page=1, total=5, page_size=5))
+
+    provider = AdzunaProvider(
+        app_id="test-id",
+        app_key="test-key",
+        request_budget=1,
+        concurrency=1,
+    )
+    provider._client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://api.adzuna.com/v1/api/jobs",
+    )
+    first = [batch async for batch in provider.pages(SearchFilters())]
+    second = [batch async for batch in provider.pages(SearchFilters())]
+    assert requests == 2
+    assert first and second
+    await provider.close()
+
+
+@pytest.mark.asyncio
 async def test_honest_total_pages() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         page = int(request.url.path.rsplit("/", 1)[-1])

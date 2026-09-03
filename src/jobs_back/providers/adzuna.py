@@ -25,6 +25,23 @@ API_BASE = "https://api.adzuna.com/v1/api/jobs"
 DEFAULT_RESULTS_PER_PAGE = 20
 DEFAULT_REQUEST_BUDGET = 50
 
+
+class _RequestBudget:
+    """Per-search request counter so reused provider instances do not share quota."""
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.made = 0
+        self._lock = asyncio.Lock()
+
+    async def consume(self) -> bool:
+        async with self._lock:
+            if self.made >= self.limit:
+                return False
+            self.made += 1
+            return True
+
+
 ATTRIBUTION_URL = "https://www.adzuna.co.uk"
 ATTRIBUTION_TEXT = (
     'This job listing is provided by Adzuna. Display "Jobs by Adzuna" with a '
@@ -219,7 +236,6 @@ class AdzunaProvider:
         self._max_retries = max_retries
         self._request_budget = max(1, request_budget)
         self._results_per_page = max(1, min(results_per_page, 50))
-        self._requests_made = 0
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -273,16 +289,15 @@ class AdzunaProvider:
         filters: SearchFilters,
         country: str,
         page: int,
+        budget: _RequestBudget,
     ) -> tuple[dict[str, Any] | None, str | None, bool]:
         """Return payload, warning, and whether quota was exhausted."""
-        if self._requests_made >= self._request_budget:
-            return None, "Adzuna request budget exhausted", True
-
         last_warning: str | None = None
         for attempt in range(self._max_retries):
+            if not await budget.consume():
+                return None, "Adzuna request budget exhausted", True
             response: httpx.Response | None = None
             try:
-                self._requests_made += 1
                 response = await self._client.get(
                     f"/{country}/search/{page}",
                     params=self._params(filters),
@@ -340,11 +355,13 @@ class AdzunaProvider:
         return normalized
 
     async def pages(self, filters: SearchFilters) -> AsyncIterator[ProviderPageBatch]:
+        budget = _RequestBudget(self._request_budget)
         country = self._country_for_filters(filters)
         payload, warning, quota_exhausted = await self._request_page(
             filters,
             country,
             1,
+            budget,
         )
         if payload is None:
             yield ProviderPageBatch(
@@ -409,6 +426,7 @@ class AdzunaProvider:
                             country,
                             page,
                             total_pages,
+                            budget,
                         )
                     except Exception:
                         logger.debug(
@@ -451,18 +469,13 @@ class AdzunaProvider:
         country: str,
         page: int,
         total_pages: int,
+        budget: _RequestBudget,
     ) -> ProviderPageBatch:
-        if self._requests_made >= self._request_budget:
-            return ProviderPageBatch(
-                items=[],
-                page=page,
-                total_pages=total_pages,
-                warnings=("Adzuna request budget exhausted",),
-            )
         payload, warning, _quota_exhausted = await self._request_page(
             filters,
             country,
             page,
+            budget,
         )
         if payload is None:
             return ProviderPageBatch(

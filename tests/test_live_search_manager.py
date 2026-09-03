@@ -149,6 +149,62 @@ async def test_stale_refresh_keeps_previous_index_readable() -> None:
     await manager.close()
 
 
+@pytest.mark.asyncio
+async def test_failed_forced_refresh_keeps_stale_index() -> None:
+    provider = FakeProvider(total_pages=1, items_per_page=2)
+    manager = LiveSearchManager(provider=provider)
+    profile_id = uuid4()
+    filters = SearchFilters()
+    first = manager.start(profile_id, filters)
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(first.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    assert manager.serving_search_id(profile_id, filters) == first.state.id
+
+    provider.fail_entirely = True
+    refresh = manager.start(profile_id, filters, force=True)
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(refresh.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    final = manager.page(refresh.state.id, 1, 25)
+    assert final is not None
+    assert final.status == "failed"
+    assert manager.serving_search_id(profile_id, filters) == first.state.id
+    stale = manager.page(first.state.id, 1, 25)
+    assert stale is not None
+    assert stale.items
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_later_page_failure_marks_search_partial() -> None:
+    provider = FakeProvider(
+        total_pages=2,
+        items_per_page=1,
+        fail_pages=frozenset({2}),
+    )
+    manager = LiveSearchManager(provider=provider)
+    started = manager.start(uuid4(), SearchFilters())
+    for _ in range(40):
+        await asyncio.sleep(0.01)
+        snapshot = manager.page(started.state.id, 1, 25)
+        assert snapshot is not None
+        if snapshot.is_complete:
+            break
+    final = manager.page(started.state.id, 1, 25)
+    assert final is not None
+    assert final.status == "complete"
+    assert final.is_partial is True
+    assert len(final.items) == 1
+    await manager.close()
+
+
 def test_evicted_search_returns_410() -> None:
     manager = LiveSearchManager(
         provider=FakeProvider(total_pages=1, items_per_page=0),

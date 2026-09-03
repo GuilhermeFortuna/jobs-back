@@ -104,11 +104,15 @@ run_test() {
   echo "==> schema"
   DATABASE_URL="${TEST_DATABASE_URL}" uv run python - <<'PY'
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 
 from alembic import command
 from alembic.config import Config
 
 url = __import__("os").environ["DATABASE_URL"]
+database_name = (make_url(url).database or "").lower()
+if "test" not in database_name:
+    raise SystemExit("TEST_DATABASE_URL database name must contain 'test'")
 engine = create_engine(url)
 inspector = inspect(engine)
 if "jobs" in inspector.get_table_names():
