@@ -81,7 +81,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md)                     | 04    | `DONE`    | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI     |
 | [JE-015](specs/JE-015-component-sourcing-infrastructure.md) / [Plan](plans/JE-015-component-sourcing-infrastructure.md)           | 05    | `DONE`    | None           | Configured component registries, Claude Code MCP access, and a verified component source ledger |
 | [JE-016](specs/JE-016-design-system-foundation.md) / [Plan](plans/JE-016-design-system-foundation.md)                             | 05    | `READY`   | JE-015         | Color, elevation, type and motion tokens, light/dark/system theming, and new design references  |
-| [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `READY`   | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
+| [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `DONE`    | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
 | [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `BLOCKED` | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `BLOCKED` | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `BLOCKED` | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
@@ -105,10 +105,12 @@ JE-014 is complete on branch `JE-014-skills-and-ranking-workspace`.
 
 JE-015 is `READY`: it depends on nothing and is the first Batch 05 task.
 
-JE-016 and JE-017 are `BLOCKED` on JE-015, which delivers the component source
-ledger and the registry configuration both consume. They become `READY`
-together when JE-015 is `DONE`, and may then run in parallel — JE-016 substitutes
-tokens without restructuring markup, so it does not depend on JE-017.
+JE-016 and JE-017 became `READY` together once JE-015 was `DONE`, and ran in
+parallel — JE-016 substitutes tokens without restructuring markup, so it did
+not depend on JE-017.
+
+JE-017 is complete on branch `JE-017-redesign-resilient-test-contracts`
+(`jobs-front`).
 
 JE-018 is `BLOCKED` on both JE-016 and JE-017. It installs components against
 JE-016 tokens and lands the first structural changes, which require JE-017's
