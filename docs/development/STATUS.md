@@ -172,10 +172,25 @@ Known deviations from the Spec, recorded rather than silently resolved:
   at the nearest stop while the label shows the exact value. The filter value
   is not mutated, so the round-trip is intact; the control is approximate until
   touched.
-- `jobs-front/public/job-scout-logo.png` was added by the JE-020 agent for
-  future header use. It is out of JE-020 scope, referenced by nothing, and is
-  deliberately **not** committed with this task. The JE-015 ledger already
-  resolves the header wordmark as custom (JE-019 surface).
+- `jobs-front/public/job-scout-logo.jpg` is the project logo. It is committed
+  as a project asset but wired into nothing: the header mark is JE-019's
+  surface, and the JE-015 ledger already resolves the header wordmark as
+  custom. It is **not** usable in the header as it stands, and the header
+  should not consume it until it is reworked:
+  - It was committed as `.png` but is a baseline JFIF JPEG. Renamed to `.jpg`;
+    nothing referenced the old name.
+  - JPEG has no alpha and the artwork has a hard black background baked in, so
+    it cannot sit on a light surface. The batch is dual-theme throughout.
+  - It is a full lockup (mark plus "Job Scout" wordmark) in a 1024x768 frame
+    with large dead margins. The header slot is a 36x36 rounded square holding
+    the mark alone, with the wordmark already rendered as live text beside it,
+    so the lockup would duplicate the wordmark and letterbox badly.
+  - Its letterforms are its own and will not match the self-hosted General
+    Sans / Cabinet Grotesk that JE-022 introduces.
+
+  What the header needs is a transparent square **mark** — SVG preferred, or a
+  PNG with alpha — cropped to the artwork, in a form that reads on both
+  themes. The wordmark stays as live text.
 
 `./ci.sh` lint, format, build and test all pass in `jobs-front` (100 tests).
 `./ci.sh e2e` has **not** passed: the Playwright suite currently fails 19 of 26
