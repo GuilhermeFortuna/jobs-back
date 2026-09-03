@@ -46,6 +46,20 @@ which extends ADR-001 rather than superseding it. Ranking ships before coverage
 so added volume arrives into a working sort. Skills rank but never exclude.
 Semantic search, AI ranking, authentication, and scheduling stay deferred.
 
+**05 — Frontend redesign and component sourcing.** A full visual redesign of the
+workspace, sourced from configured premium component registries rather than
+hand-rolled markup. Batches 02 and 03 instructed agents to source from React
+Bits, Magic UI, 21st.dev and Aceternity/Cult UI, but `components.json` configured
+no registry and the installed shadcn skill forbids guessing one, so the
+instruction was unexecutable. JE-015 fixes that tooling before any pixel changes.
+The information architecture is fixed: three panes on desktop, three views,
+profile picker in the header, sheet-versus-pane detail across one breakpoint.
+Light, dark and system themes ship with an explicit toggle. Working surfaces stay
+dense and calm; animated components are placed at pass-through moments — the
+header band, empty states, search-in-progress, and the profile surface — each
+with a reduced-motion and mobile fallback. No backend contract changes. Semantic
+search, AI ranking, authentication and scheduling stay deferred.
+
 ## Tasks
 
 
@@ -65,6 +79,13 @@ Semantic search, AI ranking, authentication, and scheduling stay deferred.
 | [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `DONE` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
 | [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `DONE` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
 | [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `DONE` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
+| [JE-015](specs/JE-015-component-sourcing-infrastructure.md) / [Plan](plans/JE-015-component-sourcing-infrastructure.md) | 05 | `READY` | None | Configured component registries, Claude Code MCP access, and a verified component source ledger |
+| [JE-016](specs/JE-016-design-system-foundation.md) / [Plan](plans/JE-016-design-system-foundation.md) | 05 | `BLOCKED` | JE-015 | Color, elevation, type and motion tokens, light/dark/system theming, and new design references |
+| [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md) | 05 | `BLOCKED` | JE-015 | Structure-coupled assertions converted to behavioral contracts before any restyle |
+| [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md) | 05 | `BLOCKED` | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed |
+| [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md) | 05 | `BLOCKED` | JE-018 | Header, navigation, pane chrome, theme control, and the header-band ambient treatment |
+| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md) | 05 | `BLOCKED` | JE-019 | Filters panel, job card with company logos, skeletons, pagination, and empty states |
+| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md) | 05 | `BLOCKED` | JE-019 | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -82,6 +103,31 @@ JE-013 is complete on branch `JE-013-remotive-weworkremotely-adapters`.
 
 JE-014 is complete on branch `JE-014-skills-and-ranking-workspace`.
 
+JE-015 is `READY`: it depends on nothing and is the first Batch 05 task.
+
+JE-016 and JE-017 are `BLOCKED` on JE-015, which delivers the component source
+ledger and the registry configuration both consume. They become `READY`
+together when JE-015 is `DONE`, and may then run in parallel — JE-016 substitutes
+tokens without restructuring markup, so it does not depend on JE-017.
+
+JE-018 is `BLOCKED` on both JE-016 and JE-017. It installs components against
+JE-016 tokens and lands the first structural changes, which require JE-017's
+converted assertions to be in place.
+
+JE-019 is `BLOCKED` on JE-018. It owns the shell files, so it precedes the other
+two surface tasks rather than competing with them for the same layout.
+
+JE-020 and JE-021 are `BLOCKED` on JE-019. They become `READY` together and own
+disjoint files, so they may run in parallel. JE-020 is authoritative for the
+shared company-logo component and the empty-state treatment; JE-021 consumes
+both rather than writing its own.
+
+External blocker on Batch 05, affecting JE-015 only: `TWENTY_FIRST_API_KEY` is
+not set in the environment, so the configured 21st.dev MCP server cannot
+authenticate. JE-015 treats that registry as optional and degrades to the
+remaining registries, so this does not block the batch — but 21st.dev components
+are unavailable until the key is supplied, which is a user action.
+
 ## Current implementation order
 
 1. Batches 01 through 03 are complete. Batch 01 catalog runtime tests live under
@@ -90,6 +136,18 @@ JE-014 is complete on branch `JE-014-skills-and-ranking-workspace`.
 2. Batch 04 is complete: JE-010 through JE-014.
 3. JE-010 and JE-011 share one normalization module. JE-010 lands it; JE-011
    extends it. A second normalizer is a defect in either task.
+4. Batch 05 is entirely `jobs-front`. It runs JE-015 first, then JE-016 and
+   JE-017 in parallel, then JE-018, then JE-019, then JE-020 and JE-021 in
+   parallel.
+5. No Batch 05 task may install a component the JE-015 ledger does not list. A
+   component sourced outside the ledger is a defect in the task that added it —
+   this is the rule whose absence caused the original sourcing failure.
+6. No Batch 05 task changes `src/hooks/use-job-scout.ts` or any module under
+   `src/lib/`. The redesign is composition and tokens; the state layer and the
+   pure logic are consumed as they are. A diff in either is a defect.
+7. No Batch 05 task changes a backend contract. A redesign requirement that
+   appears to need one — pagination and company logos are the candidates — is
+   reported as a finding rather than worked around client side.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
 row must name its dependency or explain its external blocker directly below the
