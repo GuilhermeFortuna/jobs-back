@@ -2,9 +2,8 @@
 
 ## Status
 
-Proposed for Batch 05, implemented in `jobs-front`. Depends on JE-021. Runs last
-in the batch: it re-skins surfaces JE-019 through JE-021 have already finished,
-so it must not start before they land.
+Implemented in Batch 05 (`jobs-front`). Depends on JE-021. Ran last in the
+batch: it re-skinned surfaces JE-019 through JE-021 had already finished.
 
 ## Purpose
 

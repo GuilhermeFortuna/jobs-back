@@ -89,7 +89,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `DONE`    | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `DONE`    | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
-| [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
+| [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `DONE`    | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -208,11 +208,16 @@ field/badge with JE-014 contracts preserved. Library empties reuse JE-020's
 shared `EmptyState`. `use-job-scout.ts` and `src/lib/` are unchanged.
 `./ci.sh` (lint, format, build, test) passes with 113 tests.
 
-JE-022 is `READY` now that JE-021 is `DONE`. It re-skins surfaces JE-019
-through JE-021 finish, so it must not run in parallel with them: a token change
-landing under an in-flight restyle makes both undiagnosable. It installs no
-components, so the JE-015 ledger is unchanged — the ledger governs components,
-JE-022 governs tokens and type.
+JE-022 is complete on branch `JE-022-ink-acid-identity` (`jobs-front` + docs in
+`jobs-back`). Dark-first ink neutrals (no hue tint) and acid citron `#c6f24a`
+replace the JE-016 indigo/coral palette; light is warm paper with
+`--primary-emphasis` for citron-as-text AA. General Sans and Cabinet Grotesk
+load via `next/font/local` from `src/app/fonts/` (ITF FFL). Salary uses
+`--data-*`; applied is outline + 3px left rule + badge (no coral, no
+`text-destructive`); ambient opacities retuned. `visual-direction.md` and the
+four reference PNGs are recaptured. JE-017 contracts pass; a theme e2e that
+asserted JE-016 dark navy was converted to token-based checks.
+`use-job-scout.ts` and `src/lib/` are unchanged. Batch 05 is complete.
 
 External blocker on Batch 05, affecting JE-015 only: `TWENTY_FIRST_API_KEY` is
 not set in the environment, so the configured 21st.dev MCP server cannot
