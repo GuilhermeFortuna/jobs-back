@@ -1,0 +1,46 @@
+{
+  "count": 42,
+  "mean": 65000,
+  "results": [
+    {
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "id": "129698749",
+      "title": "Senior Python Developer",
+      "description": "Build APIs with Python and PostgreSQL.",
+      "created": "2024-01-15T10:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/jobs/land/ad/129698749",
+      "salary_min": 80000,
+      "salary_max": 120000,
+      "salary_currency": "GBP",
+      "contract_time": "full_time",
+      "contract_type": "permanent",
+      "company": {
+        "__CLASS__": "Adzuna::API::Response::Company",
+        "display_name": "Acme Labs"
+      },
+      "location": {
+        "__CLASS__": "Adzuna::API::Response::Location",
+        "display_name": "London, UK",
+        "area": ["UK", "London"]
+      }
+    },
+    {
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "id": "129698750",
+      "title": "Contract Backend Engineer",
+      "description": "Short-term contract role.",
+      "created": "2024-02-01T08:30:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/jobs/land/ad/129698750",
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "contract_time": "part_time",
+      "contract_type": "contract",
+      "company": {
+        "display_name": "Beta Corp"
+      },
+      "location": {
+        "display_name": "Manchester, UK"
+      }
+    }
+  ]
+}

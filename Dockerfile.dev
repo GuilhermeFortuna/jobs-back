@@ -1,0 +1,27 @@
+FROM python:3.12-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --group dev --no-install-project
+
+COPY . .
+RUN uv sync --group dev
+
+COPY docker-entrypoint.dev.sh /usr/local/bin/docker-entrypoint.dev.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.dev.sh
+
+EXPOSE 8000
+
+ENTRYPOINT ["docker-entrypoint.dev.sh"]
+CMD ["uv", "run", "uvicorn", "jobs_back.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]

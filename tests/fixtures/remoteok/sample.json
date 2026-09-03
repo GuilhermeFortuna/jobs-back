@@ -1,0 +1,20 @@
+[
+  {
+    "legal": "Remote OK is not affiliated with this aggregator."
+  },
+  {
+    "id": "12345",
+    "slug": "senior-python-dev-acme",
+    "position": "Senior Python Developer",
+    "company": "Acme Corp",
+    "location": "Worldwide",
+    "tags": ["python", "senior"],
+    "description": "<p>Build APIs</p>",
+    "epoch": 1700000000,
+    "url": "https://remoteok.com/remote-jobs/12345",
+    "apply_url": "https://acme.example/apply",
+    "salary_min": 120000,
+    "salary_max": 160000,
+    "salary_currency": "USD"
+  }
+]

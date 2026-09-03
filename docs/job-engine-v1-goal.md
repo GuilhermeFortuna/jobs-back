@@ -1,20 +1,23 @@
-# Job Engine V1 Goal
+# Job Scout V1 Goal
 
 ## Objective
 
-Build a centralized web application for discovering and browsing job openings aggregated from multiple external providers.
+Build a personal or trusted-network web application that searches external job
+providers live and helps separate local profiles retain only the roles they save
+or apply to.
 
-V1 is focused entirely on **job discovery, normalization, search, filtering, and presentation**.
+V1 is focused on **personal job discovery, filtering, saved/applied tracking, and
+durable user intent**.
 
 ## Core V1 Scope
 
-- Integrate multiple job data providers behind a common provider interface.
-- Fetch and normalize job postings into a shared internal schema.
-- Store normalized jobs in a central database.
-- Expose a unified search API across all integrated providers.
-- Provide a web UI for searching and browsing jobs from all sources.
-- Support deterministic filtering and sorting.
-- Detect and consolidate duplicate listings where possible.
+- Support trusted profiles without authentication and keep their data separate.
+- Store one default search preference set per profile.
+- Search providers live behind a provider-neutral backend interface.
+- Show useful partial results and progress while full matching results load.
+- Keep warm search indexes in backend memory, with stale results during refresh.
+- Persist only jobs explicitly saved or marked applied by a profile.
+- Preserve saved snapshots after a provider removes a listing.
 - Preserve the original source and application URL for every job.
 
 ## Search and Filtering
@@ -23,23 +26,25 @@ The UI should support, at minimum:
 
 - Keyword search
 - Location
-- Remote / hybrid / on-site
-- Country or region eligibility
+- Worldwide or country eligibility
 - Employment type
-- Salary range
-- Provider/source
-- Posting date
+- Seniority
+- Minimum annual salary
+- Posting recency
 - Sort by newest
 - Sort by salary
+- Sort by relevance
 
-## Normalized Job Model
+## Durable data model
 
-The internal representation should include fields such as:
+PostgreSQL stores profile identity/preferences and selected job snapshots with
+fields such as:
 
 ```text
-id
+profile_id
 provider
 provider_job_id
+state: saved | applied
 title
 company
 location
@@ -52,7 +57,8 @@ description
 job_url
 apply_url
 posted_at
-discovered_at
+saved_at
+applied_at
 ```
 
 The provider-specific implementation should remain isolated from the rest of the application.
@@ -64,16 +70,18 @@ Provider Adapters
         ↓
 Normalization
         ↓
-Central Database
+Per-profile in-memory search indexes
         ↓
-Search / Filter API
+Search / Filter API + user selection
         ↓
-Web UI
+PostgreSQL personal library
+        ↓
+Web UI: Discover / Saved / Applied
 ```
 
 ## Provider Strategy
 
-V1 should prioritize providers that offer:
+Himalayas is the first V1 provider. Later providers should prioritize:
 
 - Broad job coverage
 - Free access or a generous renewable free tier
@@ -82,9 +90,13 @@ V1 should prioritize providers that offer:
 - Fresh listings
 - Useful location and remote-work metadata
 - Clear application URLs
-- Terms compatible with displaying aggregated job listings
 
 Provider selection should optimize for **maximum useful non-overlapping coverage**, rather than simply maximizing the number of integrations.
+
+Component or dependency license analysis is not a project concern. Provider
+access must still use available interfaces without bypassing credentials,
+payments, or technical access controls, and source attribution requirements must
+be preserved.
 
 ## Explicitly Out of Scope for V1
 
@@ -98,9 +110,17 @@ Do not include:
 - Automated applications
 - Agent workflows
 - Application-form automation
+- Authentication and public multi-tenant account infrastructure
+- Persisted provider catalogs or every result a profile happens to view
+- Distributed search caches or multiple backend workers
+- Shared libraries and collaborative workflows
 
 These features can be added after the job aggregation and search foundation is stable.
 
 ## V1 Success Criteria
 
-V1 is successful when a user can open one application, search across all integrated sources, apply useful filters, compare results, and reach the original application page without needing to search each provider individually.
+V1 is successful when a person can select their profile, open a warmed useful
+search, refine it while results load progressively, inspect and compare roles,
+save or mark selected roles as applied, return to those durable snapshots later,
+and reach the original application page without maintaining an unwanted local
+copy of the provider catalog.

@@ -16,6 +16,7 @@ htmlcov/
 # Env
 .env
 .env.local
+dev-stack/.env
 
 # IDE / OS
 .idea/
@@ -25,3 +26,6 @@ htmlcov/
 
 # Alembic (keep versions/, ignore local scratch)
 *.db
+
+# cursor
+.cursor/*
