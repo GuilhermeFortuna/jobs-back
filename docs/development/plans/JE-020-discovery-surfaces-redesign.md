@@ -15,8 +15,8 @@ files.
 | `src/lib/search-params.ts` | `filtersFromSearchParams`, `searchParamsFromFilters`, `mergeFilters`, `syncFiltersToUrl` | Reuse as-is. A control that changes type must still round-trip through these |
 | `src/lib/job-utils.ts` | `money`, `age`, `sourceCount`, `countActiveFilters`, `preserveSelection` | Reuse for all display formatting; do not reimplement |
 | `src/lib/api.ts` | `JobResult.company_logo_url`, search page contract | Read; do not change |
-| `src/hooks/use-job-scout.ts` | `DEFAULT_FILTERS` imported by the panel | Untouched; keep the import |
-| `next.config.ts` | Empty; no `images` key | The one config file this task must change |
+| `src/hooks/use-job-scout.ts` | `DEFAULT_FILTERS` imported by the panel; polls without `page` | Narrow exemption: page state, pass `{ page, page_size }` to `api.search`, reset page on new search. Nothing else |
+| `next.config.ts` | Empty; no `images` key | The one Next config file this task must change |
 | `jobs-front/docs/design/` | JE-015 ledger, JE-016 references | Only permitted component source; the visual target |
 
 ## Remaining implementation
@@ -48,7 +48,9 @@ files.
 5. Preserve the save control's accessible name and keyboard operation, and the
    multi-source attribution treatment.
 6. Add skeletons sized to the redesigned card so the list does not reflow.
-7. Present the JE-018 pagination against the existing page contract.
+7. Present the JE-018 pagination against the existing page contract. Wire it
+   through the narrow `use-job-scout.ts` page-state exemption in the Spec —
+   no client-side slicing of `items`.
 
 ### Empty states
 
@@ -69,7 +71,8 @@ files.
   assertion that no relevance score reaches the DOM.
 - Skeleton tests asserting no layout shift when results replace the skeletons.
 - Pagination tests against the existing page contract, with no client-side
-  slicing.
+  slicing: a page change issues `api.search` with the new `page`, and
+  selection survives the page change.
 - Progressive-update tests: selection preserved across updates, stale results
   visible during refresh.
 - Reduced-motion test for the empty-state treatment.
@@ -85,6 +88,9 @@ files.
 - Manual end-to-end verification against a running API via `./dev.sh`: run a
   search, adjust every filter, confirm the URL restores them, paginate, save a
   role, and observe logos loading from real providers — in both themes.
-- `use-job-scout.ts` and every `src/lib/` module are unchanged; `next.config.ts`
-  is the only config change and its `images` choice is recorded in the report.
+- Every `src/lib/` module is unchanged. `use-job-scout.ts` is the **sole**
+  exemption and may only add page state, pass `{ page, page_size }` to
+  `api.search`, and reset page on new search — recorded in the task report.
+- `next.config.ts` is the only Next config change and its `images` choice is
+  recorded in the report.
 - No job detail, search status, or skills surface change ships with this task.

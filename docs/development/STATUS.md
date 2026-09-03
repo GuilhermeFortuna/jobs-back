@@ -87,7 +87,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `DONE`    | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
 | [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `DONE`    | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
-| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `READY`   | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
+| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `DONE`    | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `READY`   | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 | [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
@@ -131,9 +131,21 @@ required. The mobile tab bar is a viewport-fixed sibling of the header (not
 nested under `backdrop-blur`) so `position: fixed` is not trapped by the header
 containing block.
 
-JE-020 and JE-021 are `READY` after JE-019. They own disjoint files, so they may
-run in parallel. JE-020 is authoritative for the shared company-logo component
-and the empty-state treatment; JE-021 consumes both rather than writing its own.
+JE-020 is complete on branch `JE-020-discovery-surfaces-redesign`
+(`jobs-front` + docs in `jobs-back`). Filters use accordion, toggle groups,
+unified provider checkbox group, and a salary slider that snaps to the same
+URL values. Job cards render `company_logo_url` via shared `CompanyLogo` with
+letter-tile fallback. `next.config.ts` uses permissive `images.remotePatterns`
+(`hostname: "**"`) because employer logo hosts are arbitrary CDNs, not fixed
+provider domains. Pagination works through a narrow `use-job-scout` page-state
+exemption (sole hook change; `src/lib/` unchanged). Empty states use
+`@magicui/blur-fade` with reduced-motion and mobile static fallbacks.
+Brand mark asset saved at `jobs-front/public/job-scout-logo.png` for header
+use; JE-020 does not wire it into the shell (JE-019 surface).
+
+JE-021 remains `READY` after JE-019. It owns disjoint files from JE-020 and
+should consume `CompanyLogo` and the empty-state treatment rather than forking
+them.
 
 JE-022 is `READY` only once JE-021 is `DONE`. It re-skins surfaces JE-019
 through JE-021 finish, so it must not run in parallel with them: a token change
