@@ -87,8 +87,8 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `DONE`    | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
 | [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `DONE`    | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
-| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `IN PROGRESS` | JE-019     | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
-| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `READY`   | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
+| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `DONE`    | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
+| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `DONE`    | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 | [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
 
@@ -131,8 +131,8 @@ required. The mobile tab bar is a viewport-fixed sibling of the header (not
 nested under `backdrop-blur`) so `position: fixed` is not trapped by the header
 containing block.
 
-JE-020 is implemented on branch `JE-020-discovery-surfaces-redesign`
-(`jobs-front` + docs in `jobs-back`), not yet merged to `development`. Filters
+JE-020 is complete on branch `JE-020-discovery-surfaces-redesign`
+(`jobs-front` + docs in `jobs-back`). Filters
 use accordion, toggle groups, unified provider checkbox group, and a salary
 slider that snaps to the same URL values. Job cards render `company_logo_url`
 via shared `CompanyLogo` with letter-tile fallback. Pagination works through a
@@ -192,18 +192,23 @@ Known deviations from the Spec, recorded rather than silently resolved:
   PNG with alpha — cropped to the artwork, in a form that reads on both
   themes. The wordmark stays as live text.
 
-`./ci.sh` lint, format, build and test all pass in `jobs-front` (100 tests).
-`./ci.sh e2e` has **not** passed: the Playwright suite currently fails 19 of 26
-across both projects, including `theme.spec.ts` cases that predate JE-020 and
-are unrelated to it. The e2e suite needs its own triage pass before JE-020 or
-JE-021 can claim `./ci.sh all`. Running the full suite locally is memory-hungry
-(desktop + mobile, `fullyParallel`); run one project at a time.
+`./ci.sh` lint, format, build and test all pass in `jobs-front`.
+Playwright journeys pass on the JE-021 branch (21 passed, 5 skipped design
+capture). An earlier STATUS note that e2e failed 19 of 26 is obsolete for the
+current suite.
 
-JE-021 remains `READY` after JE-019. It owns disjoint files from JE-020 and
-should consume `CompanyLogo` and the empty-state treatment rather than forking
-them.
+JE-021 is complete on branch `JE-021-detail-library-and-status-surfaces`
+(`jobs-front` + docs in `jobs-back`). Job detail uses real Overview | Sources
+tabs and shared `CompanyLogo`. Search status collapses six banners into one
+`StatusBanner` helper, keeps `search-notice` / `aria-live` / toast strip rules,
+and adds `@kokonutui/ai-loading` for search-in-progress with reduced-motion and
+mobile fallbacks. Profile create/rename/skills dialogs use `@magicui/border-beam`
+(static under reduced motion); the skills editor is a tag-input composition on
+field/badge with JE-014 contracts preserved. Library empties reuse JE-020's
+shared `EmptyState`. `use-job-scout.ts` and `src/lib/` are unchanged.
+`./ci.sh` (lint, format, build, test) passes with 113 tests.
 
-JE-022 is `READY` only once JE-021 is `DONE`. It re-skins surfaces JE-019
+JE-022 is `READY` now that JE-021 is `DONE`. It re-skins surfaces JE-019
 through JE-021 finish, so it must not run in parallel with them: a token change
 landing under an in-flight restyle makes both undiagnosable. It installs no
 components, so the JE-015 ledger is unchanged — the ledger governs components,
