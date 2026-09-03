@@ -54,7 +54,10 @@ no registry and the installed shadcn skill forbids guessing one, so the
 instruction was unexecutable. JE-015 fixes that tooling before any pixel changes.
 The information architecture is fixed: three panes on desktop, three views,
 profile picker in the header, sheet-versus-pane detail across one breakpoint.
-Light, dark and system themes ship with an explicit toggle. Working surfaces stay
+Light, dark and system themes ship with an explicit toggle. JE-016 established
+the token layer light-first; JE-022 closes the batch by re-authoring it
+dark-first on a single-accent identity, which is why it runs after the surfaces
+rather than before them. Working surfaces stay
 dense and calm; animated components are placed at pass-through moments — the
 header band, empty states, search-in-progress, and the profile surface — each
 with a reduced-motion and mobile fallback. No backend contract changes. Semantic
@@ -86,6 +89,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `READY`   | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `READY`   | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
+| [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -131,6 +135,12 @@ JE-020 and JE-021 are `READY` after JE-019. They own disjoint files, so they may
 run in parallel. JE-020 is authoritative for the shared company-logo component
 and the empty-state treatment; JE-021 consumes both rather than writing its own.
 
+JE-022 is `READY` only once JE-021 is `DONE`. It re-skins surfaces JE-019
+through JE-021 finish, so it must not run in parallel with them: a token change
+landing under an in-flight restyle makes both undiagnosable. It installs no
+components, so the JE-015 ledger is unchanged — the ledger governs components,
+JE-022 governs tokens and type.
+
 External blocker on Batch 05, affecting JE-015 only: `TWENTY_FIRST_API_KEY` is
 not set in the environment, so the configured 21st.dev MCP server cannot
 authenticate. JE-015 treats that registry as optional and degrades to the
@@ -147,7 +157,7 @@ are unavailable until the key is supplied, which is a user action.
   extends it. A second normalizer is a defect in either task.
 4. Batch 05 is entirely `jobs-front`. It runs JE-015 first, then JE-016 and
   JE-017 in parallel, then JE-018, then JE-019, then JE-020 and JE-021 in
-   parallel.
+   parallel, then JE-022 last.
 5. No Batch 05 task may install a component the JE-015 ledger does not list. A
   component sourced outside the ledger is a defect in the task that added it —
    this is the rule whose absence caused the original sourcing failure.
