@@ -87,7 +87,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `DONE`    | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
 | [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `DONE`    | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
-| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `DONE`    | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
+| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `IN PROGRESS` | JE-019     | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `READY`   | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 | [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
@@ -131,17 +131,58 @@ required. The mobile tab bar is a viewport-fixed sibling of the header (not
 nested under `backdrop-blur`) so `position: fixed` is not trapped by the header
 containing block.
 
-JE-020 is complete on branch `JE-020-discovery-surfaces-redesign`
-(`jobs-front` + docs in `jobs-back`). Filters use accordion, toggle groups,
-unified provider checkbox group, and a salary slider that snaps to the same
-URL values. Job cards render `company_logo_url` via shared `CompanyLogo` with
-letter-tile fallback. `next.config.ts` uses permissive `images.remotePatterns`
-(`hostname: "**"`) because employer logo hosts are arbitrary CDNs, not fixed
-provider domains. Pagination works through a narrow `use-job-scout` page-state
-exemption (sole hook change; `src/lib/` unchanged). Empty states use
-`@magicui/blur-fade` with reduced-motion and mobile static fallbacks.
-Brand mark asset saved at `jobs-front/public/job-scout-logo.png` for header
-use; JE-020 does not wire it into the shell (JE-019 surface).
+JE-020 is implemented on branch `JE-020-discovery-surfaces-redesign`
+(`jobs-front` + docs in `jobs-back`), not yet merged to `development`. Filters
+use accordion, toggle groups, unified provider checkbox group, and a salary
+slider that snaps to the same URL values. Job cards render `company_logo_url`
+via shared `CompanyLogo` with letter-tile fallback. Pagination works through a
+narrow `use-job-scout` page-state exemption (sole hook change; `src/lib/`
+unchanged) and is mounted at every breakpoint — the results footer is
+desktop-only, so mobile carries its own mount at the end of the list. Empty
+states use `@magicui/blur-fade` with reduced-motion and mobile static
+fallbacks.
+
+`next.config.ts` images decision: company logos bypass the optimizer entirely
+(`unoptimized` on the `next/image` in `CompanyLogo`), so no `remotePatterns`
+entry is required and `/_next/image` stays closed to remote hosts. The earlier
+`hostname: "**"` wildcard was removed: `generateImgAttrs` returns before the
+default loader when `unoptimized` is set, so the wildcard was never consulted
+for logos while still exposing the optimizer as an open image proxy to any
+future `<Image>`. Rationale is recorded in `next.config.ts` itself.
+
+`SEARCH_PAGE_SIZE` is 25, matching the backend default (`/searches/{id}`
+`page_size` default 25, max 100). The first implementation used 100 — the API
+ceiling — which meant pagination only appeared past 100 results and the
+unbounded list the Spec set out to fix stayed unbounded for almost every
+search.
+
+Selection survives a page change: paging is navigation, so a selection made on
+the previous page is kept rather than snapping to whichever role leads the new
+page. `applySearchPage` takes an explicit `keepSelection` option used only by
+`setPage`; `preserveSelection` in `src/lib/job-utils.ts` is unchanged.
+
+Known deviations from the Spec, recorded rather than silently resolved:
+
+- The Spec requires preserving "the debounce shared by the keyword and location
+  inputs". No debounce exists anywhere in `src/` — the inputs commit on change
+  and search on Enter. Nothing was removed by JE-020; the Spec describes
+  behaviour the codebase does not have. Resolve in JE-021 or a follow-up.
+- A restored URL value that is not one of the four salary stops (e.g.
+  `salary=120000`, only reachable by hand-editing the URL) renders the slider
+  at the nearest stop while the label shows the exact value. The filter value
+  is not mutated, so the round-trip is intact; the control is approximate until
+  touched.
+- `jobs-front/public/job-scout-logo.png` was added by the JE-020 agent for
+  future header use. It is out of JE-020 scope, referenced by nothing, and is
+  deliberately **not** committed with this task. The JE-015 ledger already
+  resolves the header wordmark as custom (JE-019 surface).
+
+`./ci.sh` lint, format, build and test all pass in `jobs-front` (100 tests).
+`./ci.sh e2e` has **not** passed: the Playwright suite currently fails 19 of 26
+across both projects, including `theme.spec.ts` cases that predate JE-020 and
+are unrelated to it. The e2e suite needs its own triage pass before JE-020 or
+JE-021 can claim `./ci.sh all`. Running the full suite locally is memory-hungry
+(desktop + mobile, `fullyParallel`); run one project at a time.
 
 JE-021 remains `READY` after JE-019. It owns disjoint files from JE-020 and
 should consume `CompanyLogo` and the empty-state treatment rather than forking
