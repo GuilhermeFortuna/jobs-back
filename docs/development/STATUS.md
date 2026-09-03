@@ -64,7 +64,7 @@ Semantic search, AI ranking, authentication, and scheduling stay deferred.
 | [JE-011](specs/JE-011-relevance-ranking-engine.md) / [Plan](plans/JE-011-relevance-ranking-engine.md) | 04 | `DONE` | JE-010 | Deterministic skill- and query-aware relevance scoring, match reporting, and location filter |
 | [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `DONE` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
 | [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `DONE` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
-| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `READY` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
+| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `DONE` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -80,20 +80,15 @@ JE-012 is complete on branch `JE-012-provider-configuration-adzuna`.
 
 JE-013 is complete on branch `JE-013-remotive-weworkremotely-adapters`.
 
-JE-014 becomes `READY` when its dependencies reach `DONE`. Each blocked row
-names its dependency or explains its external blocker directly below the table.
+JE-014 is complete on branch `JE-014-skills-and-ranking-workspace`.
 
 ## Current implementation order
 
 1. Batches 01 through 03 are complete. Batch 01 catalog runtime tests live under
    `tests/historical/` with explicit skip markers referencing ADR-001; JE-004
    PostgreSQL tests cover the active profile/library contract.
-2. Batch 04 runs strictly in order: JE-010 skills, then JE-011 relevance, then
-   JE-012 provider configuration with Adzuna, then JE-013 Remotive and We Work
-   Remotely. JE-010 through JE-013 are `jobs-back`; JE-014 is `jobs-front`.
-3. JE-014 may proceed on structure once the JE-011 and JE-012 contracts are
-   final, and must align with them before completion.
-4. JE-010 and JE-011 share one normalization module. JE-010 lands it; JE-011
+2. Batch 04 is complete: JE-010 through JE-014.
+3. JE-010 and JE-011 share one normalization module. JE-010 lands it; JE-011
    extends it. A second normalizer is a defect in either task.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
