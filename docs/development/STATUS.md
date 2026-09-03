@@ -82,8 +82,8 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-015](specs/JE-015-component-sourcing-infrastructure.md) / [Plan](plans/JE-015-component-sourcing-infrastructure.md)           | 05    | `DONE`    | None           | Configured component registries, Claude Code MCP access, and a verified component source ledger |
 | [JE-016](specs/JE-016-design-system-foundation.md) / [Plan](plans/JE-016-design-system-foundation.md)                             | 05    | `DONE`    | JE-015         | Color, elevation, type and motion tokens, light/dark/system theming, and new design references  |
 | [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `DONE`    | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
-| [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `READY`   | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
-| [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `BLOCKED` | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
+| [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `DONE`    | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
+| [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `READY`   | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `BLOCKED` | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `BLOCKED` | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 
@@ -110,15 +110,24 @@ JE-016 is complete on branch `JE-016-design-system-foundation`.
 JE-017 is complete on branch `JE-017-redesign-resilient-test-contracts`
 (`jobs-front`).
 
+JE-018 is complete on branch `JE-018-primitive-layer-completion`
+(`jobs-front`; `STATUS.md` in `jobs-back`).
+
+**JE-018 pagination finding:** `@shadcn/pagination` is installed, but interactive
+page wiring is blocked without changing `use-job-scout.ts`. The hook always polls
+page 1 and exposes no `page` / `setPage`, while Batch 05 forbids hook/`src/lib`
+diffs and client-side slicing. A follow-up task must expose page control from the
+hook and pass `page` into `api.search` before AC 10 can go fully green. JE-020 may
+consume the installed primitive once that surface exists. This finding does **not**
+block JE-019.
+
 JE-016 and JE-017 became `READY` together once JE-015 was `DONE`, and ran in
 parallel — JE-016 substitutes tokens without restructuring markup, so it did
-not depend on JE-017. Both are now `DONE`, so JE-018 is `READY`.
+not depend on JE-017. Both are now `DONE`, so JE-018 is `DONE` and JE-019 is
+`READY`.
 
-JE-018 installs components against JE-016 tokens and lands the first structural
-changes, which require JE-017's converted assertions to be in place.
-
-JE-019 is `BLOCKED` on JE-018. It owns the shell files, so it precedes the other
-two surface tasks rather than competing with them for the same layout.
+JE-019 owns the shell files, so it precedes the other two surface tasks rather
+than competing with them for the same layout.
 
 JE-020 and JE-021 are `BLOCKED` on JE-019. They become `READY` together and own
 disjoint files, so they may run in parallel. JE-020 is authoritative for the
