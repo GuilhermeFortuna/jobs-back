@@ -63,29 +63,29 @@ search, AI ranking, authentication and scheduling stay deferred.
 ## Tasks
 
 
-| ID                                                                                                                                | Batch | Status | Depends on     | Deliverable                                                                                |
-| --------------------------------------------------------------------------------------------------------------------------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------ |
-| [JE-001](specs/JE-001-normalized-job-model.md) / [Plan](plans/JE-001-normalized-job-model.md)                                     | 01    | `DONE` | None           | Normalized PostgreSQL job model, validation, migration, and lifecycle fields               |
-| [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md)                                         | 01    | `DONE` | JE-001         | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner  |
-| [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md)                                                 | 01    | `DONE` | JE-001         | Filtered and deterministically sorted job list and detail API                              |
-| [JE-004](specs/JE-004-trusted-profiles-personal-library.md) / [Plan](plans/JE-004-trusted-profiles-personal-library.md)           | 02    | `DONE` | None           | Trusted profiles, default preferences, and isolated saved/applied snapshots                |
-| [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md)                 | 02    | `DONE` | JE-004         | Per-profile progressive in-memory search and hardened Himalayas adapter                    |
-| [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md)               | 02    | `DONE` | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace                            |
-| [JE-007](specs/JE-007-multi-provider-search-fan-in.md) / [Plan](plans/JE-007-multi-provider-search-fan-in.md)                     | 03    | `DONE` | JE-005         | Provider registry and concurrent multi-provider fan-in with RemoteOK and Jobicy adapters   |
-| [JE-008](specs/JE-008-cross-provider-duplicate-consolidation.md) / [Plan](plans/JE-008-cross-provider-duplicate-consolidation.md) | 03    | `DONE` | JE-007         | Deterministic cross-provider duplicate consolidation in memory and in the personal library |
-| [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)               | 03    | `DONE` | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace     |
-| [JE-010](specs/JE-010-profile-skills.md) / [Plan](plans/JE-010-profile-skills.md) | 04 | `DONE` | JE-004 | Profile skills column, contract, shared normalizer, and search-cache invalidation |
-| [JE-011](specs/JE-011-relevance-ranking-engine.md) / [Plan](plans/JE-011-relevance-ranking-engine.md) | 04 | `DONE` | JE-010 | Deterministic skill- and query-aware relevance scoring, match reporting, and location filter |
-| [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md) | 04 | `DONE` | JE-011 | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter |
-| [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md) | 04 | `DONE` | JE-012 | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract |
-| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md) | 04 | `DONE` | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI |
-| [JE-015](specs/JE-015-component-sourcing-infrastructure.md) / [Plan](plans/JE-015-component-sourcing-infrastructure.md) | 05 | `DONE` | None | Configured component registries, Claude Code MCP access, and a verified component source ledger |
-| [JE-016](specs/JE-016-design-system-foundation.md) / [Plan](plans/JE-016-design-system-foundation.md) | 05 | `READY` | JE-015 | Color, elevation, type and motion tokens, light/dark/system theming, and new design references |
-| [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md) | 05 | `READY` | JE-015 | Structure-coupled assertions converted to behavioral contracts before any restyle |
-| [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md) | 05 | `BLOCKED` | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed |
-| [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md) | 05 | `BLOCKED` | JE-018 | Header, navigation, pane chrome, theme control, and the header-band ambient treatment |
-| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md) | 05 | `BLOCKED` | JE-019 | Filters panel, job card with company logos, skeletons, pagination, and empty states |
-| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md) | 05 | `BLOCKED` | JE-019 | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface |
+| ID                                                                                                                                | Batch | Status    | Depends on     | Deliverable                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----- | --------- | -------------- | ----------------------------------------------------------------------------------------------- |
+| [JE-001](specs/JE-001-normalized-job-model.md) / [Plan](plans/JE-001-normalized-job-model.md)                                     | 01    | `DONE`    | None           | Normalized PostgreSQL job model, validation, migration, and lifecycle fields                    |
+| [JE-002](specs/JE-002-provider-ingestion.md) / [Plan](plans/JE-002-provider-ingestion.md)                                         | 01    | `DONE`    | JE-001         | Provider adapter contract, atomic ingestion service, sync-run tracking, and manual runner       |
+| [JE-003](specs/JE-003-job-search-api.md) / [Plan](plans/JE-003-job-search-api.md)                                                 | 01    | `DONE`    | JE-001         | Filtered and deterministically sorted job list and detail API                                   |
+| [JE-004](specs/JE-004-trusted-profiles-personal-library.md) / [Plan](plans/JE-004-trusted-profiles-personal-library.md)           | 02    | `DONE`    | None           | Trusted profiles, default preferences, and isolated saved/applied snapshots                     |
+| [JE-005](specs/JE-005-live-provider-search-himalayas.md) / [Plan](plans/JE-005-live-provider-search-himalayas.md)                 | 02    | `DONE`    | JE-004         | Per-profile progressive in-memory search and hardened Himalayas adapter                         |
+| [JE-006](specs/JE-006-personal-job-discovery-frontend.md) / [Plan](plans/JE-006-personal-job-discovery-frontend.md)               | 02    | `DONE`    | JE-004, JE-005 | Responsive profile-aware Discover, Saved, and Applied workspace                                 |
+| [JE-007](specs/JE-007-multi-provider-search-fan-in.md) / [Plan](plans/JE-007-multi-provider-search-fan-in.md)                     | 03    | `DONE`    | JE-005         | Provider registry and concurrent multi-provider fan-in with RemoteOK and Jobicy adapters        |
+| [JE-008](specs/JE-008-cross-provider-duplicate-consolidation.md) / [Plan](plans/JE-008-cross-provider-duplicate-consolidation.md) | 03    | `DONE`    | JE-007         | Deterministic cross-provider duplicate consolidation in memory and in the personal library      |
+| [JE-009](specs/JE-009-multi-source-discovery-frontend.md) / [Plan](plans/JE-009-multi-source-discovery-frontend.md)               | 03    | `DONE`    | JE-007, JE-008 | Multi-source attribution, per-provider status, and provider filtering in the workspace          |
+| [JE-010](specs/JE-010-profile-skills.md) / [Plan](plans/JE-010-profile-skills.md)                                                 | 04    | `DONE`    | JE-004         | Profile skills column, contract, shared normalizer, and search-cache invalidation               |
+| [JE-011](specs/JE-011-relevance-ranking-engine.md) / [Plan](plans/JE-011-relevance-ranking-engine.md)                             | 04    | `DONE`    | JE-010         | Deterministic skill- and query-aware relevance scoring, match reporting, and location filter    |
+| [JE-012](specs/JE-012-provider-configuration-adzuna.md) / [Plan](plans/JE-012-provider-configuration-adzuna.md)                   | 04    | `DONE`    | JE-011         | Configured-versus-enabled provider resolution and the credentialed Adzuna adapter               |
+| [JE-013](specs/JE-013-remotive-weworkremotely-adapters.md) / [Plan](plans/JE-013-remotive-weworkremotely-adapters.md)             | 04    | `DONE`    | JE-012         | Remotive JSON and We Work Remotely feed adapters behind the unchanged adapter contract          |
+| [JE-014](specs/JE-014-skills-and-ranking-workspace.md) / [Plan](plans/JE-014-skills-and-ranking-workspace.md)                     | 04    | `DONE`    | JE-011, JE-012 | Skills editor, ranking explainability, location filter, and provider availability in the UI     |
+| [JE-015](specs/JE-015-component-sourcing-infrastructure.md) / [Plan](plans/JE-015-component-sourcing-infrastructure.md)           | 05    | `DONE`    | None           | Configured component registries, Claude Code MCP access, and a verified component source ledger |
+| [JE-016](specs/JE-016-design-system-foundation.md) / [Plan](plans/JE-016-design-system-foundation.md)                             | 05    | `READY`   | JE-015         | Color, elevation, type and motion tokens, light/dark/system theming, and new design references  |
+| [JE-017](specs/JE-017-redesign-resilient-test-contracts.md) / [Plan](plans/JE-017-redesign-resilient-test-contracts.md)           | 05    | `READY`   | JE-015         | Structure-coupled assertions converted to behavioral contracts before any restyle               |
+| [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `BLOCKED` | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
+| [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `BLOCKED` | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
+| [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `BLOCKED` | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
+| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `BLOCKED` | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -103,11 +103,12 @@ JE-013 is complete on branch `JE-013-remotive-weworkremotely-adapters`.
 
 JE-014 is complete on branch `JE-014-skills-and-ranking-workspace`.
 
-JE-015 is complete on branch `JE-015-component-sourcing-infrastructure`.
+JE-015 is `READY`: it depends on nothing and is the first Batch 05 task.
 
-JE-016 and JE-017 are `READY` together after JE-015 and may run in parallel —
-JE-016 substitutes tokens without restructuring markup, so it does not depend
-on JE-017.
+JE-016 and JE-017 are `BLOCKED` on JE-015, which delivers the component source
+ledger and the registry configuration both consume. They become `READY`
+together when JE-015 is `DONE`, and may then run in parallel — JE-016 substitutes
+tokens without restructuring markup, so it does not depend on JE-017.
 
 JE-018 is `BLOCKED` on both JE-016 and JE-017. It installs components against
 JE-016 tokens and lands the first structural changes, which require JE-017's
@@ -121,32 +122,31 @@ disjoint files, so they may run in parallel. JE-020 is authoritative for the
 shared company-logo component and the empty-state treatment; JE-021 consumes
 both rather than writing its own.
 
-External note on Batch 05: `TWENTY_FIRST_API_KEY` remains unset, so the
-configured 21st.dev MCP server cannot authenticate. JE-015 treated that registry
-as optional and authored the ledger without it. 21st.dev components stay
-unavailable until the key is supplied (user action). `@cult-ui` search returned
-HTTP 429 during JE-015 authoring; the namespace is configured, but no ledger row
-sources from it until an item is re-verified.
+External blocker on Batch 05, affecting JE-015 only: `TWENTY_FIRST_API_KEY` is
+not set in the environment, so the configured 21st.dev MCP server cannot
+authenticate. JE-015 treats that registry as optional and degrades to the
+remaining registries, so this does not block the batch — but 21st.dev components
+are unavailable until the key is supplied, which is a user action.
 
 ## Current implementation order
 
 1. Batches 01 through 03 are complete. Batch 01 catalog runtime tests live under
-   `tests/historical/` with explicit skip markers referencing ADR-001; JE-004
+  `tests/historical/` with explicit skip markers referencing ADR-001; JE-004
    PostgreSQL tests cover the active profile/library contract.
 2. Batch 04 is complete: JE-010 through JE-014.
 3. JE-010 and JE-011 share one normalization module. JE-010 lands it; JE-011
-   extends it. A second normalizer is a defect in either task.
+  extends it. A second normalizer is a defect in either task.
 4. Batch 05 is entirely `jobs-front`. It runs JE-015 first, then JE-016 and
-   JE-017 in parallel, then JE-018, then JE-019, then JE-020 and JE-021 in
+  JE-017 in parallel, then JE-018, then JE-019, then JE-020 and JE-021 in
    parallel.
 5. No Batch 05 task may install a component the JE-015 ledger does not list. A
-   component sourced outside the ledger is a defect in the task that added it —
+  component sourced outside the ledger is a defect in the task that added it —
    this is the rule whose absence caused the original sourcing failure.
 6. No Batch 05 task changes `src/hooks/use-job-scout.ts` or any module under
-   `src/lib/`. The redesign is composition and tokens; the state layer and the
+  `src/lib/`. The redesign is composition and tokens; the state layer and the
    pure logic are consumed as they are. A diff in either is a defect.
 7. No Batch 05 task changes a backend contract. A redesign requirement that
-   appears to need one — pagination and company logos are the candidates — is
+  appears to need one — pagination and company logos are the candidates — is
    reported as a finding rather than worked around client side.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
