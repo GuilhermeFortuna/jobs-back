@@ -88,7 +88,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-018](specs/JE-018-primitive-layer-completion.md) / [Plan](plans/JE-018-primitive-layer-completion.md)                         | 05    | `DONE`    | JE-016, JE-017 | Missing primitives installed from the ledger and hand-rolled duplicates removed                 |
 | [JE-019](specs/JE-019-application-shell-and-theme-surface.md) / [Plan](plans/JE-019-application-shell-and-theme-surface.md)       | 05    | `DONE`    | JE-018         | Header, navigation, pane chrome, theme control, and the header-band ambient treatment           |
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `IN PROGRESS` | JE-019     | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
-| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `READY`   | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
+| [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `DONE`    | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 | [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `READY`   | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
 
 
@@ -172,23 +172,43 @@ Known deviations from the Spec, recorded rather than silently resolved:
   at the nearest stop while the label shows the exact value. The filter value
   is not mutated, so the round-trip is intact; the control is approximate until
   touched.
-- `jobs-front/public/job-scout-logo.png` was added by the JE-020 agent for
-  future header use. It is out of JE-020 scope, referenced by nothing, and is
-  deliberately **not** committed with this task. The JE-015 ledger already
-  resolves the header wordmark as custom (JE-019 surface).
+- `jobs-front/public/job-scout-logo.jpg` is the project logo. It is committed
+  as a project asset but wired into nothing: the header mark is JE-019's
+  surface, and the JE-015 ledger already resolves the header wordmark as
+  custom. It is **not** usable in the header as it stands, and the header
+  should not consume it until it is reworked:
+  - It was committed as `.png` but is a baseline JFIF JPEG. Renamed to `.jpg`;
+    nothing referenced the old name.
+  - JPEG has no alpha and the artwork has a hard black background baked in, so
+    it cannot sit on a light surface. The batch is dual-theme throughout.
+  - It is a full lockup (mark plus "Job Scout" wordmark) in a 1024x768 frame
+    with large dead margins. The header slot is a 36x36 rounded square holding
+    the mark alone, with the wordmark already rendered as live text beside it,
+    so the lockup would duplicate the wordmark and letterbox badly.
+  - Its letterforms are its own and will not match the self-hosted General
+    Sans / Cabinet Grotesk that JE-022 introduces.
 
-`./ci.sh` lint, format, build and test all pass in `jobs-front` (100 tests).
-`./ci.sh e2e` has **not** passed: the Playwright suite currently fails 19 of 26
-across both projects, including `theme.spec.ts` cases that predate JE-020 and
-are unrelated to it. The e2e suite needs its own triage pass before JE-020 or
-JE-021 can claim `./ci.sh all`. Running the full suite locally is memory-hungry
-(desktop + mobile, `fullyParallel`); run one project at a time.
+  What the header needs is a transparent square **mark** — SVG preferred, or a
+  PNG with alpha — cropped to the artwork, in a form that reads on both
+  themes. The wordmark stays as live text.
 
-JE-021 remains `READY` after JE-019. It owns disjoint files from JE-020 and
-should consume `CompanyLogo` and the empty-state treatment rather than forking
-them.
+`./ci.sh` lint, format, build and test all pass in `jobs-front`.
+Playwright journeys pass on the JE-021 branch (21 passed, 5 skipped design
+capture). An earlier STATUS note that e2e failed 19 of 26 is obsolete for the
+current suite.
 
-JE-022 is `READY` only once JE-021 is `DONE`. It re-skins surfaces JE-019
+JE-021 is complete on branch `JE-021-detail-library-and-status-surfaces`
+(`jobs-front` + docs in `jobs-back`). Job detail uses real Overview | Sources
+tabs and shared `CompanyLogo`. Search status collapses six banners into one
+`StatusBanner` helper, keeps `search-notice` / `aria-live` / toast strip rules,
+and adds `@kokonutui/ai-loading` for search-in-progress with reduced-motion and
+mobile fallbacks. Profile create/rename/skills dialogs use `@magicui/border-beam`
+(static under reduced motion); the skills editor is a tag-input composition on
+field/badge with JE-014 contracts preserved. Library empties reuse JE-020's
+shared `EmptyState`. `use-job-scout.ts` and `src/lib/` are unchanged.
+`./ci.sh` (lint, format, build, test) passes with 113 tests.
+
+JE-022 is `READY` now that JE-021 is `DONE`. It re-skins surfaces JE-019
 through JE-021 finish, so it must not run in parallel with them: a token change
 landing under an in-flight restyle makes both undiagnosable. It installs no
 components, so the JE-015 ledger is unchanged — the ledger governs components,
