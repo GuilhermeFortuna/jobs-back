@@ -239,9 +239,10 @@ are unavailable until the key is supplied, which is a user action.
 5. No Batch 05 task may install a component the JE-015 ledger does not list. A
   component sourced outside the ledger is a defect in the task that added it —
    this is the rule whose absence caused the original sourcing failure.
-6. No Batch 05 task changes `src/hooks/use-job-scout.ts` or any module under
-  `src/lib/`. The redesign is composition and tokens; the state layer and the
-   pure logic are consumed as they are. A diff in either is a defect.
+6. No Batch 05 task changes any module under `src/lib/`. JE-020 has one
+   documented, narrow pagination-state exemption in
+   `src/hooks/use-job-scout.ts`, including consistent rollback when a page
+   request fails. Any other state-layer diff is a defect.
 7. No Batch 05 task changes a backend contract. A redesign requirement that
   appears to need one — pagination and company logos are the candidates — is
    reported as a finding rather than worked around client side.
@@ -257,4 +258,3 @@ table.
 - Distributed or multi-instance search-index coordination
 - Authentication, sharing, and collaborative application tracking
 - AI analysis, semantic search, resume matching, and application automation
-
