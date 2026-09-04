@@ -35,4 +35,10 @@ def test_search_filters_require_a_substantive_provider_criterion() -> None:
     assert SearchFilters(seniority=["Senior"]).has_search_criteria()
     assert SearchFilters(employment_types=["Full Time"]).has_search_criteria()
     assert SearchFilters(minimum_salary=100_000).has_search_criteria()
+    assert SearchFilters(salary_stated_only=True).has_search_criteria()
     assert SearchFilters(posted_within_days=7).has_search_criteria()
+
+
+def test_search_filters_schema_includes_stated_salary_filter() -> None:
+    schema = SearchFilters.model_json_schema()
+    assert "salary_stated_only" in schema["properties"]

@@ -37,6 +37,7 @@ class SearchFilters(BaseModel):
     employment_types: list[str] = Field(default_factory=list, max_length=10)
     providers: list[str] = Field(default_factory=list, max_length=10)
     minimum_salary: int | None = Field(default=None, ge=0, le=10_000_000)
+    salary_stated_only: bool = False
     posted_within_days: int | None = Field(default=None, ge=1, le=3650)
     sort: SearchSort = SearchSort.RELEVANCE
 
@@ -55,6 +56,7 @@ class SearchFilters(BaseModel):
             or self.seniority
             or self.employment_types
             or self.minimum_salary is not None
+            or self.salary_stated_only
             or self.posted_within_days is not None
         )
 

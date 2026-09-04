@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -24,6 +25,29 @@ def test_location_filter_rejects_missing_location_text() -> None:
     job = make_job_result(location_text=None)
     assert job_matches_location(job, "")
     assert not job_matches_location(job, "remote")
+
+
+def test_stated_salary_filter_rejects_jobs_without_compensation() -> None:
+    stated = make_job_result(salary_min_annual=None, salary_max_annual=None)
+    with_minimum = make_job_result(
+        provider_job_id="with-minimum", salary_max_annual=None
+    )
+    with_maximum = make_job_result(
+        provider_job_id="with-maximum", salary_min_annual=None
+    )
+
+    filtered = LiveSearchManager._filter(
+        [stated, with_minimum, with_maximum],
+        SimpleNamespace(
+            filters=SearchFilters(salary_stated_only=True),
+            query_tokens=[],
+        ),
+    )
+
+    assert [item.provider_job_id for item in filtered] == [
+        "with-minimum",
+        "with-maximum",
+    ]
 
 
 def test_canonical_filters_include_location() -> None:

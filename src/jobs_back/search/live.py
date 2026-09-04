@@ -51,6 +51,7 @@ def canonical_filters(filters: SearchFilters) -> SearchFilters:
         employment_types=sorted(filters.employment_types),
         providers=sorted(filters.providers),
         minimum_salary=filters.minimum_salary,
+        salary_stated_only=filters.salary_stated_only,
         posted_within_days=filters.posted_within_days,
         sort=filters.sort,
     )
@@ -475,6 +476,10 @@ class LiveSearchManager:
         )
         filtered = []
         for item in items:
+            if filters.salary_stated_only and (
+                item.salary_min_annual is None and item.salary_max_annual is None
+            ):
+                continue
             if filters.minimum_salary is not None:
                 ceiling = item.salary_max_annual or item.salary_min_annual
                 if ceiling is None or ceiling < filters.minimum_salary:
