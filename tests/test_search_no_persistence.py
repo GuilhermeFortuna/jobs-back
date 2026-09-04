@@ -9,6 +9,7 @@ from jobs_back.db import get_db
 from jobs_back.main import create_app
 from jobs_back.models.profile import Profile
 from jobs_back.models.saved_job import SavedJob
+from jobs_back.schemas.discovery import SearchFilters
 from jobs_back.search.live import LiveSearchManager
 from tests.helpers.fake_provider import FakeProvider
 
@@ -32,7 +33,13 @@ def test_search_does_not_create_library_rows(search_client, db_session) -> None:
     client, _manager = search_client
     profiles_before = db_session.scalar(select(func.count()).select_from(Profile)) or 0
     saved_before = db_session.scalar(select(func.count()).select_from(SavedJob)) or 0
-    profile = client.post("/profiles", json={"display_name": "No Persist"}).json()
+    profile = client.post(
+        "/profiles",
+        json={
+            "display_name": "No Persist",
+            "preferences": SearchFilters(seniority=["senior"]).model_dump(),
+        },
+    ).json()
     response = client.post("/searches", json={"profile_id": profile["id"]})
     assert response.status_code == 202
     profiles_after = db_session.scalar(select(func.count()).select_from(Profile)) or 0

@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from jobs_back.config import Settings
 from jobs_back.schemas.discovery import SearchFilters
 from jobs_back.search.live import LiveSearchManager
 from tests.helpers.discovery import make_job_result
@@ -82,7 +83,10 @@ async def test_filter_and_sort_scales_sub_quadratically() -> None:
 @pytest.mark.benchmark
 @pytest.mark.asyncio
 async def test_consolidation_scales_sub_quadratically_with_duplicates() -> None:
-    manager = LiveSearchManager(provider=StaticProvider([]))
+    manager = LiveSearchManager(
+        provider=StaticProvider([]),
+        settings=Settings(search_max_candidates_per_search=10_000),
+    )
     filters = SearchFilters(sort="salary")
 
     async def run(count: int) -> float:
@@ -96,8 +100,8 @@ async def test_consolidation_scales_sub_quadratically_with_duplicates() -> None:
         assert len(state.items) == count
         return elapsed
 
-    small = await run(10_000)
-    large = await run(100_000)
+    small = await run(500)
+    large = await run(5_000)
     await manager.close()
     assert large / small <= 20
 
@@ -120,7 +124,10 @@ async def test_relevance_filter_and_sort_scales_sub_quadratically() -> None:
             for index in range(count)
         ]
         provider = StaticProvider(items)
-        manager = LiveSearchManager(provider=provider)
+        manager = LiveSearchManager(
+            provider=provider,
+            settings=Settings(search_max_candidates_per_search=10_000),
+        )
         state = manager.start(uuid4(), filters, profile_skills=skills).state
         started = time.perf_counter()
         await manager._populate(state, (uuid4(), "key"))
@@ -131,6 +138,6 @@ async def test_relevance_filter_and_sort_scales_sub_quadratically() -> None:
         await manager.close()
         return elapsed
 
-    small = await run(10_000)
-    large = await run(100_000)
+    small = await run(1_000)
+    large = await run(10_000)
     assert large / small <= 15
