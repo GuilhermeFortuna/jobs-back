@@ -399,6 +399,13 @@ class AdzunaProvider:
                     queried_country=country,
                 )
             )
+            trunc = f"results truncated at {self._result_cap}"
+            if (
+                accepted >= self._result_cap
+                and total_pages > 1
+                and trunc not in warnings
+            ):
+                warnings = (*warnings, trunc)
             first_batch = ProviderPageBatch(
                 items=items,
                 page=1,
@@ -473,11 +480,19 @@ class AdzunaProvider:
                     finished += 1
                     continue
                 items, warnings = cap(result.items)
+                combined = result.warnings + warnings
+                trunc = f"results truncated at {self._result_cap}"
+                if (
+                    accepted >= self._result_cap
+                    and result.page < total_pages
+                    and trunc not in combined
+                ):
+                    combined = (*combined, trunc)
                 yield ProviderPageBatch(
                     items=items,
                     page=result.page,
                     total_pages=result.total_pages,
-                    warnings=result.warnings + warnings,
+                    warnings=combined,
                 )
                 if accepted >= self._result_cap:
                     break

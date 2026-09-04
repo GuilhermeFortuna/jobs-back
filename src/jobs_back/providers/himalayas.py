@@ -312,6 +312,13 @@ class HimalayasProvider:
             page_size = max(1, int(_first(payload, "limit", "pageSize", default=20)))
             total_pages = max(1, math.ceil(total / page_size))
             items, warnings = cap(self._normalize_page_items(raw_items))
+            trunc = f"results truncated at {self._result_cap}"
+            if (
+                accepted >= self._result_cap
+                and total_pages > 1
+                and trunc not in warnings
+            ):
+                warnings = (*warnings, trunc)
             first_batch = ProviderPageBatch(
                 items=items,
                 page=1,
@@ -376,11 +383,19 @@ class HimalayasProvider:
                     finished += 1
                     continue
                 items, warnings = cap(result.items)
+                combined = result.warnings + warnings
+                trunc = f"results truncated at {self._result_cap}"
+                if (
+                    accepted >= self._result_cap
+                    and result.page < total_pages
+                    and trunc not in combined
+                ):
+                    combined = (*combined, trunc)
                 yield ProviderPageBatch(
                     items=items,
                     page=result.page,
                     total_pages=result.total_pages,
-                    warnings=result.warnings + warnings,
+                    warnings=combined,
                 )
                 if accepted >= self._result_cap:
                     break

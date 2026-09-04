@@ -172,15 +172,16 @@ class RemoteOKProvider:
             return
 
         normalized: list[JobResult] = []
+        truncated = False
         for item in payload:
             if not isinstance(item, dict):
                 continue
+            if len(normalized) >= self._batch_size:
+                truncated = True
+                break
             job = normalize_job(item)
             if job is not None:
                 normalized.append(job)
-
-        truncated = len(normalized) > self._batch_size
-        normalized = normalized[: self._batch_size]
 
         if not normalized:
             yield ProviderPageBatch(

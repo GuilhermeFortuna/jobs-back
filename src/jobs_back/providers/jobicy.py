@@ -202,19 +202,23 @@ class JobicyProvider:
             return
 
         normalized: list[JobResult] = []
+        hit_cap = False
         for item in raw_jobs:
             if not isinstance(item, dict):
                 continue
+            if len(normalized) >= self._result_cap:
+                hit_cap = True
+                break
             job = normalize_job(item)
             if job is not None:
                 normalized.append(job)
 
-        normalized = normalized[: self._result_cap]
-
         warnings: list[str] = []
         if warning:
             warnings.append(warning)
-        if self._is_broad_search(filters) and len(raw_jobs) >= self._result_cap:
+        if self._is_broad_search(filters) and (
+            hit_cap or len(raw_jobs) >= self._result_cap
+        ):
             warnings.append(f"results truncated at {self._result_cap}")
 
         if not normalized:

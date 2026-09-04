@@ -349,24 +349,28 @@ class LiveSearchManager:
                 if state.aggregate_exhausted:
                     tracker.incomplete = True
                     break
-                filtered = self._filter(batch.items, state)
+                # Charge the aggregate ceiling against normalized provider
+                # candidates before local filtering so nonmatching rows still
+                # consume the safety budget.
                 async with state.lock:
                     remaining = (
                         self._max_candidates_per_search - state.accepted_candidate_count
                     )
-                    accepted = filtered[: max(0, remaining)]
-                    state.accepted_candidate_count += len(accepted)
-                    if len(accepted) < len(filtered):
+                    budgeted = batch.items[: max(0, remaining)]
+                    state.accepted_candidate_count += len(budgeted)
+                    if len(budgeted) < len(batch.items):
                         tracker.incomplete = True
                         state.aggregate_exhausted = True
                         state.warnings.append(
                             "Search: candidate budget exhausted; results were truncated"
                         )
-                    self._consolidate_items(state, accepted)
+                filtered = self._filter(budgeted, state)
+                async with state.lock:
+                    self._consolidate_items(state, filtered)
                     self._apply_batch(
                         state,
                         tracker,
-                        accepted,
+                        filtered,
                         batch,
                         raw_count=len(batch.items),
                     )

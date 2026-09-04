@@ -32,11 +32,23 @@ def test_search_filters_require_a_substantive_provider_criterion() -> None:
     assert SearchFilters(location="Lisbon").has_search_criteria()
     assert SearchFilters(country="Brazil").has_search_criteria()
     assert SearchFilters(worldwide=True).has_search_criteria()
+    assert SearchFilters(worldwide=False).has_search_criteria()
     assert SearchFilters(seniority=["Senior"]).has_search_criteria()
     assert SearchFilters(employment_types=["Full Time"]).has_search_criteria()
     assert SearchFilters(minimum_salary=100_000).has_search_criteria()
     assert SearchFilters(salary_stated_only=True).has_search_criteria()
     assert SearchFilters(posted_within_days=7).has_search_criteria()
+
+
+def test_search_filters_reject_blank_textual_criteria() -> None:
+    assert not SearchFilters(country="   ").has_search_criteria()
+    assert SearchFilters(country="   ").country is None
+    assert not SearchFilters(seniority=[""]).has_search_criteria()
+    assert SearchFilters(seniority=[""]).seniority == []
+    assert not SearchFilters(employment_types=[" "]).has_search_criteria()
+    assert SearchFilters(employment_types=[" "]).employment_types == []
+    assert SearchFilters(seniority=["  Senior  "]).seniority == ["Senior"]
+    assert SearchFilters(providers=["  remoteok  ", ""]).providers == ["remoteok"]
 
 
 def test_search_filters_schema_includes_stated_salary_filter() -> None:
