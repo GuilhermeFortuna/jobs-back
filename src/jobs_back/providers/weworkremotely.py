@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 FEED_URL = "https://weworkremotely.com/remote-jobs.rss"
 # Observed practical upper bound for the public all-jobs feed.
-FEED_ITEM_CAP = 500
+FEED_ITEM_CAP = 100
 
 ATTRIBUTION_URL = "https://weworkremotely.com"
 ATTRIBUTION_TEXT = (
@@ -181,7 +181,7 @@ class WeWorkRemotelyProvider:
         )
         self._batch_size = max(1, batch_size)
         self._max_retries = max_retries
-        self._feed_item_cap = feed_item_cap
+        self._feed_item_cap = max(1, feed_item_cap)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -260,7 +260,7 @@ class WeWorkRemotelyProvider:
             warnings.append(f"results truncated at {self._feed_item_cap}")
 
         normalized: list[JobResult] = []
-        for entry in raw_entries:
+        for entry in raw_entries[: self._feed_item_cap]:
             job = normalize_job(entry)
             if job is not None:
                 normalized.append(job)

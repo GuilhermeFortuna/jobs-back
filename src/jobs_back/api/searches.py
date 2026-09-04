@@ -20,6 +20,15 @@ from jobs_back.services.exceptions import NotFoundError, SearchExpiredError
 router = APIRouter(tags=["search"])
 
 
+def require_search_criteria(filters: SearchFilters) -> SearchFilters:
+    if not filters.has_search_criteria():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Add at least one job criterion before starting a provider search",
+        )
+    return filters
+
+
 def get_manager(request: Request) -> LiveSearchManager:
     return request.app.state.search_manager
 
@@ -72,7 +81,9 @@ async def create_search(
     profile = db.get(Profile, body.profile_id)
     if profile is None:
         raise HTTPException(404, "Profile not found")
-    filters = body.filters or SearchFilters.model_validate(profile.preferences)
+    filters = require_search_criteria(
+        body.filters or SearchFilters.model_validate(profile.preferences)
+    )
     started = manager.start(profile.id, filters, profile_skills=profile.skills)
     return _search_page_or_error(manager, started.state.id, 1, 25, profile.id)
 
@@ -112,9 +123,10 @@ async def refresh_default_search(
     profile = db.get(Profile, profile_id)
     if profile is None:
         raise HTTPException(404, "Profile not found")
+    filters = require_search_criteria(SearchFilters.model_validate(profile.preferences))
     started = manager.start(
         profile.id,
-        SearchFilters.model_validate(profile.preferences),
+        filters,
         profile_skills=profile.skills,
         force=True,
     )

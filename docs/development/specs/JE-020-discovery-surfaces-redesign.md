@@ -66,11 +66,27 @@ mobile fallback rules as every other effect in the batch.
 
 ## Behavior that must not change
 
-- Component prop types, `use-job-scout.ts`, and every `src/lib/` module,
-  including `job-utils.ts` formatting helpers and `search-params.ts`
-  serialization.
+- Component prop types and every `src/lib/` module, including `job-utils.ts`
+  formatting helpers and `search-params.ts` serialization.
 - Progressive result updates and selection preservation across them.
 - Stale results remaining visible during a refresh.
+
+### Narrow exemption — search page state in `use-job-scout.ts`
+
+Pagination must work against the existing search page contract (`page`,
+`page_size`, `total`) without client-side slicing of `items`. The API client
+already accepts `{ page, page_size }`; the hook currently always polls page 1.
+
+`use-job-scout.ts` may add **only**:
+
+- page state (default `1`) and a setter,
+- passing `{ page, page_size }` through to `api.search`,
+- resetting page to `1` on a new search or filter-driven search.
+
+Polling, progressive updates, selection preservation, and stale-result behavior
+must stay as they are. Existing hook tests must still pass. No other hook
+behavior and no `src/lib/` module may change. Record this exemption in the
+task report: the hook is the sole exception; `src/lib/` is unchanged.
 
 ## Out of scope
 

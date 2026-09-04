@@ -18,7 +18,25 @@ SearchApiClient = tuple[TestClient, LiveSearchManager]
 
 
 def _create_profile(client: TestClient, name: str) -> str:
-    response = client.post("/profiles", json={"display_name": name})
+    response = client.post(
+        "/profiles",
+        json={
+            "display_name": name,
+            "preferences": SearchFilters(query="python").model_dump(),
+        },
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def _create_searchable_profile(client: TestClient, name: str) -> str:
+    response = client.post(
+        "/profiles",
+        json={
+            "display_name": name,
+            "preferences": SearchFilters(seniority=["senior"]).model_dump(),
+        },
+    )
     assert response.status_code == 201
     return response.json()["id"]
 
@@ -56,9 +74,22 @@ def test_create_search_returns_202(search_api_client: SearchApiClient) -> None:
         assert "provider_payload" not in body["items"][0]
 
 
+def test_create_search_rejects_non_substantive_filters(
+    search_api_client: SearchApiClient,
+) -> None:
+    client, manager = search_api_client
+    profile_id = _create_profile(client, "Guarded")
+    response = client.post(
+        "/searches",
+        json={"profile_id": profile_id, "filters": {"providers": ["remoteok"]}},
+    )
+    assert response.status_code == 422
+    assert not manager.states
+
+
 def test_get_search_eventually_completes(search_api_client: SearchApiClient) -> None:
     client, _manager = search_api_client
-    profile_id = _create_profile(client, "Poller")
+    profile_id = _create_searchable_profile(client, "Poller")
     created = client.post("/searches", json={"profile_id": profile_id})
     search_id = created.json()["search_id"]
     final = None

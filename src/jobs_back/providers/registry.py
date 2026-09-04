@@ -102,6 +102,11 @@ def _coerce_float(value: Any, default: float) -> float:
     return default
 
 
+def _bounded_option(value: Any, default: int, *, minimum: int, maximum: int) -> int:
+    parsed = _coerce_int(value, default)
+    return parsed if minimum <= parsed <= maximum else default
+
+
 def _factory(
     key: str,
     settings: Settings,
@@ -117,15 +122,35 @@ def _factory(
                 options.get("timeout"),
                 settings.himalayas_timeout_seconds,
             ),
+            request_budget=_bounded_option(
+                options.get("request_budget"), 10, minimum=1, maximum=50
+            ),
+            result_cap=_bounded_option(
+                options.get("result_cap"), 200, minimum=1, maximum=1_000
+            ),
         )
     if key == "remoteok":
         return RemoteOKProvider(
             timeout=_coerce_float(options.get("timeout"), 20.0),
-            batch_size=_coerce_int(options.get("batch_size"), 100),
+            batch_size=_bounded_option(
+                options.get("result_cap", options.get("batch_size")),
+                100,
+                minimum=1,
+                maximum=1_000,
+            ),
+            max_retries=_bounded_option(
+                options.get("request_budget"), 1, minimum=1, maximum=50
+            ),
         )
     if key == "jobicy":
         return JobicyProvider(
             timeout=_coerce_float(options.get("timeout"), 20.0),
+            result_cap=_bounded_option(
+                options.get("result_cap"), 50, minimum=1, maximum=1_000
+            ),
+            max_retries=_bounded_option(
+                options.get("request_budget"), 1, minimum=1, maximum=50
+            ),
         )
     if key == "adzuna":
         creds = _credential_values(settings, key)
@@ -141,16 +166,38 @@ def _factory(
                 options.get("timeout"),
                 settings.adzuna_timeout_seconds,
             ),
-            request_budget=_coerce_int(options.get("request_budget"), 50),
+            request_budget=_bounded_option(
+                options.get("request_budget"), 10, minimum=1, maximum=50
+            ),
+            result_cap=_bounded_option(
+                options.get("result_cap"), 200, minimum=1, maximum=1_000
+            ),
         )
     if key == "remotive":
         return RemotiveProvider(
             timeout=_coerce_float(options.get("timeout"), 20.0),
+            result_cap=_bounded_option(
+                options.get("result_cap"), 50, minimum=1, maximum=1_000
+            ),
+            max_retries=_bounded_option(
+                options.get("request_budget"), 1, minimum=1, maximum=50
+            ),
         )
     if key == "weworkremotely":
         return WeWorkRemotelyProvider(
             timeout=_coerce_float(options.get("timeout"), 20.0),
-            batch_size=_coerce_int(options.get("batch_size"), 100),
+            batch_size=_bounded_option(
+                options.get("result_cap", options.get("batch_size")),
+                100,
+                minimum=1,
+                maximum=1_000,
+            ),
+            feed_item_cap=_bounded_option(
+                options.get("result_cap"), 100, minimum=1, maximum=1_000
+            ),
+            max_retries=_bounded_option(
+                options.get("request_budget"), 1, minimum=1, maximum=50
+            ),
         )
     msg = f"Unknown provider key: {key}"
     raise ValueError(msg)

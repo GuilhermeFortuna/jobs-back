@@ -172,9 +172,13 @@ class RemoteOKProvider:
             return
 
         normalized: list[JobResult] = []
+        truncated = False
         for item in payload:
             if not isinstance(item, dict):
                 continue
+            if len(normalized) >= self._batch_size:
+                truncated = True
+                break
             job = normalize_job(item)
             if job is not None:
                 normalized.append(job)
@@ -199,4 +203,7 @@ class RemoteOKProvider:
                 items=normalized[start:end],
                 page=index + 1,
                 total_pages=total_pages,
+                warnings=(f"results truncated at {self._batch_size}",)
+                if truncated and index == 0
+                else (),
             )

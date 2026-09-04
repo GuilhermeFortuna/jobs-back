@@ -37,6 +37,7 @@ class SearchFilters(BaseModel):
     employment_types: list[str] = Field(default_factory=list, max_length=10)
     providers: list[str] = Field(default_factory=list, max_length=10)
     minimum_salary: int | None = Field(default=None, ge=0, le=10_000_000)
+    salary_stated_only: bool = False
     posted_within_days: int | None = Field(default=None, ge=1, le=3650)
     sort: SearchSort = SearchSort.RELEVANCE
 
@@ -44,6 +45,38 @@ class SearchFilters(BaseModel):
     @classmethod
     def trim_whitespace(cls, value: str) -> str:
         return " ".join(value.split())
+
+    @field_validator("country")
+    @classmethod
+    def normalize_country(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        trimmed = " ".join(value.split())
+        return trimmed or None
+
+    @field_validator("seniority", "employment_types", "providers")
+    @classmethod
+    def drop_blank_list_entries(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for item in value:
+            trimmed = " ".join(item.split())
+            if trimmed:
+                cleaned.append(trimmed)
+        return cleaned
+
+    def has_search_criteria(self) -> bool:
+        """Whether these filters substantively constrain provider work."""
+        return bool(
+            self.query
+            or self.location
+            or self.country
+            or self.worldwide is not None
+            or self.seniority
+            or self.employment_types
+            or self.minimum_salary is not None
+            or self.salary_stated_only
+            or self.posted_within_days is not None
+        )
 
 
 class ProfileCreate(BaseModel):

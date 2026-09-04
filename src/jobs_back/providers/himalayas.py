@@ -18,6 +18,22 @@ from jobs_back.schemas.discovery import JobResult, SearchFilters
 
 logger = logging.getLogger(__name__)
 
+
+class _RequestBudget:
+    """Atomic per-search transport budget shared by concurrent page workers."""
+
+    def __init__(self, limit: int) -> None:
+        self._remaining = limit
+        self._lock = asyncio.Lock()
+
+    async def consume(self) -> bool:
+        async with self._lock:
+            if self._remaining <= 0:
+                return False
+            self._remaining -= 1
+            return True
+
+
 EMPLOYMENT_MAP = {
     "full time": "full_time",
     "part time": "part_time",
@@ -158,12 +174,16 @@ class HimalayasProvider:
         concurrency: int = 12,
         timeout: float = 20,
         max_retries: int = 3,
+        request_budget: int = 10,
+        result_cap: int = 200,
     ) -> None:
         self._client = httpx.AsyncClient(
             base_url="https://himalayas.app", timeout=timeout, follow_redirects=True
         )
         self._concurrency = concurrency
         self._max_retries = max_retries
+        self._request_budget = max(1, request_budget)
+        self._result_cap = max(1, result_cap)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -210,10 +230,12 @@ class HimalayasProvider:
         return min(0.5 * (2**attempt), 8.0)
 
     async def _request_page(
-        self, filters: SearchFilters, page: int
+        self, filters: SearchFilters, page: int, budget: _RequestBudget
     ) -> tuple[dict[str, Any] | None, str | None]:
         last_warning: str | None = None
         for attempt in range(self._max_retries):
+            if not await budget.consume():
+                return None, "Himalayas request budget exhausted"
             response: httpx.Response | None = None
             try:
                 response = await self._client.get(
@@ -260,7 +282,21 @@ class HimalayasProvider:
         return normalized
 
     async def pages(self, filters: SearchFilters) -> AsyncIterator[ProviderPageBatch]:
-        payload, warning = await self._request_page(filters, 1)
+        budget = _RequestBudget(self._request_budget)
+        accepted = 0
+
+        def cap(items: list[JobResult]) -> tuple[list[JobResult], tuple[str, ...]]:
+            nonlocal accepted
+            remaining = self._result_cap - accepted
+            capped = items[: max(0, remaining)]
+            accepted += len(capped)
+            return capped, (
+                (f"results truncated at {self._result_cap}",)
+                if len(capped) < len(items)
+                else ()
+            )
+
+        payload, warning = await self._request_page(filters, 1, budget)
         if payload is None:
             yield ProviderPageBatch(
                 items=[],
@@ -275,10 +311,19 @@ class HimalayasProvider:
             total = int(_first(payload, "totalCount", "total", default=len(raw_items)))
             page_size = max(1, int(_first(payload, "limit", "pageSize", default=20)))
             total_pages = max(1, math.ceil(total / page_size))
+            items, warnings = cap(self._normalize_page_items(raw_items))
+            trunc = f"results truncated at {self._result_cap}"
+            if (
+                accepted >= self._result_cap
+                and total_pages > 1
+                and trunc not in warnings
+            ):
+                warnings = (*warnings, trunc)
             first_batch = ProviderPageBatch(
-                items=self._normalize_page_items(raw_items),
+                items=items,
                 page=1,
                 total_pages=total_pages,
+                warnings=warnings,
             )
         except (TypeError, ValueError):
             logger.debug("Himalayas page 1 could not be processed", exc_info=True)
@@ -291,7 +336,7 @@ class HimalayasProvider:
             return
         yield first_batch
 
-        if total_pages <= 1:
+        if total_pages <= 1 or accepted >= self._result_cap:
             return
 
         queue: asyncio.Queue[int | None] = asyncio.Queue()
@@ -309,7 +354,9 @@ class HimalayasProvider:
                     if page is None:
                         return
                     try:
-                        batch = await self._fetch_batch(filters, page, total_pages)
+                        batch = await self._fetch_batch(
+                            filters, page, total_pages, budget
+                        )
                     except Exception:
                         logger.debug(
                             "Himalayas page %s could not be processed",
@@ -335,16 +382,36 @@ class HimalayasProvider:
                 if result is None:
                     finished += 1
                     continue
-                yield result
+                items, warnings = cap(result.items)
+                combined = result.warnings + warnings
+                trunc = f"results truncated at {self._result_cap}"
+                if (
+                    accepted >= self._result_cap
+                    and result.page < total_pages
+                    and trunc not in combined
+                ):
+                    combined = (*combined, trunc)
+                yield ProviderPageBatch(
+                    items=items,
+                    page=result.page,
+                    total_pages=result.total_pages,
+                    warnings=combined,
+                )
+                if accepted >= self._result_cap:
+                    break
         finally:
             for task in workers:
                 task.cancel()
             await asyncio.gather(*workers, return_exceptions=True)
 
     async def _fetch_batch(
-        self, filters: SearchFilters, page: int, total_pages: int
+        self,
+        filters: SearchFilters,
+        page: int,
+        total_pages: int,
+        budget: _RequestBudget,
     ) -> ProviderPageBatch:
-        payload, warning = await self._request_page(filters, page)
+        payload, warning = await self._request_page(filters, page, budget)
         if payload is None:
             return ProviderPageBatch(
                 items=[],

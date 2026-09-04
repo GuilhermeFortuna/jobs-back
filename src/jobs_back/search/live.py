@@ -51,6 +51,7 @@ def canonical_filters(filters: SearchFilters) -> SearchFilters:
         employment_types=sorted(filters.employment_types),
         providers=sorted(filters.providers),
         minimum_salary=filters.minimum_salary,
+        salary_stated_only=filters.salary_stated_only,
         posted_within_days=filters.posted_within_days,
         sort=filters.sort,
     )
@@ -82,6 +83,8 @@ class SearchState:
     status: str = "loading"
     progress: float = 0
     checked_count: int = 0
+    accepted_candidate_count: int = 0
+    aggregate_exhausted: bool = False
     is_partial: bool = False
     provider_trackers: dict[str, ProviderTracker] = field(default_factory=dict)
     items: list[JobResult] = field(default_factory=list)
@@ -126,6 +129,9 @@ class LiveSearchManager:
             self.providers = [HimalayasProvider()]
         provider_count = enabled_provider_count or len(self.providers)
         self._max_items = self._settings.effective_search_max_items(provider_count)
+        self._max_candidates_per_search = (
+            self._settings.search_max_candidates_per_search
+        )
         self._max_states = self._settings.effective_search_max_states(provider_count)
         self.states: dict[UUID, SearchState] = {}
         self.latest: dict[tuple[UUID, str], UUID] = {}
@@ -136,12 +142,8 @@ class LiveSearchManager:
         self._background_tasks: set[asyncio.Task[None]] = set()
         self._closed = False
 
-    def start_background_tasks(
-        self, session_factory: sessionmaker[Session] | None = None
-    ) -> None:
+    def start_background_tasks(self) -> None:
         self._track_task(asyncio.create_task(self._run_eviction_loop()))
-        if session_factory is not None:
-            self._track_task(asyncio.create_task(self.warm_defaults(session_factory)))
 
     def _track_task(self, task: asyncio.Task[None]) -> None:
         self._background_tasks.add(task)
@@ -282,10 +284,11 @@ class LiveSearchManager:
         tracker.completed_pages += 1
         tracker.checked_count += raw_count
         if batch.warnings:
+            if batch_items:
+                tracker.had_success = True
             for warning in batch.warnings:
                 state.warnings.append(f"{tracker.provider}: {warning}")
-            if tracker.had_success:
-                tracker.incomplete = True
+            tracker.incomplete = True
         else:
             tracker.had_success = True
         if tracker.expected_pages:
@@ -343,7 +346,25 @@ class LiveSearchManager:
         tracker = state.provider_trackers[provider.key]
         try:
             async for batch in provider.pages(state.filters):
-                filtered = self._filter(batch.items, state)
+                if state.aggregate_exhausted:
+                    tracker.incomplete = True
+                    break
+                # Charge the aggregate ceiling against normalized provider
+                # candidates before local filtering so nonmatching rows still
+                # consume the safety budget.
+                async with state.lock:
+                    remaining = (
+                        self._max_candidates_per_search - state.accepted_candidate_count
+                    )
+                    budgeted = batch.items[: max(0, remaining)]
+                    state.accepted_candidate_count += len(budgeted)
+                    if len(budgeted) < len(batch.items):
+                        tracker.incomplete = True
+                        state.aggregate_exhausted = True
+                        state.warnings.append(
+                            "Search: candidate budget exhausted; results were truncated"
+                        )
+                filtered = self._filter(budgeted, state)
                 async with state.lock:
                     self._consolidate_items(state, filtered)
                     self._apply_batch(
@@ -353,6 +374,9 @@ class LiveSearchManager:
                         batch,
                         raw_count=len(batch.items),
                     )
+
+                if state.aggregate_exhausted:
+                    break
 
                 refreshing = search_key in self.refreshing
                 if refreshing and self.refreshing[search_key] == state.id:
@@ -456,6 +480,10 @@ class LiveSearchManager:
         )
         filtered = []
         for item in items:
+            if filters.salary_stated_only and (
+                item.salary_min_annual is None and item.salary_max_annual is None
+            ):
+                continue
             if filters.minimum_salary is not None:
                 ceiling = item.salary_max_annual or item.salary_min_annual
                 if ceiling is None or ceiling < filters.minimum_salary:

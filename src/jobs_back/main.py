@@ -7,7 +7,6 @@ from jobs_back.api.profiles import router as profiles_router
 from jobs_back.api.providers import router as providers_router
 from jobs_back.api.searches import router as searches_router
 from jobs_back.config import get_settings
-from jobs_back.db import SessionLocal
 from jobs_back.providers.registry import build_providers, enabled_provider_count
 from jobs_back.search.live import LiveSearchManager
 
@@ -25,7 +24,7 @@ def create_app() -> FastAPI:
         )
         app.state.search_manager = manager
         if settings.app_env != "test":
-            manager.start_background_tasks(SessionLocal)
+            manager.start_background_tasks()
         yield
         await app.state.search_manager.close()
 
