@@ -63,6 +63,11 @@ header band, empty states, search-in-progress, and the profile surface — each
 with a reduced-motion and mobile fallback. No backend contract changes. Semantic
 search, AI ranking, authentication and scheduling stay deferred.
 
+Batch 06 begins with JE-023, a cross-repository safety correction. Search form
+restoration remains local and provider work requires explicit activation;
+backend validation and bounded adapter fan-out enforce the same rule when the
+client is bypassed.
+
 ## Tasks
 
 
@@ -90,6 +95,7 @@ search, AI ranking, authentication and scheduling stay deferred.
 | [JE-020](specs/JE-020-discovery-surfaces-redesign.md) / [Plan](plans/JE-020-discovery-surfaces-redesign.md)                       | 05    | `DONE`    | JE-019         | Filters panel, job card with company logos, skeletons, pagination, and empty states             |
 | [JE-021](specs/JE-021-detail-library-and-status-surfaces.md) / [Plan](plans/JE-021-detail-library-and-status-surfaces.md)         | 05    | `DONE`    | JE-019         | Job detail tabs, unified status alerts, search-in-progress treatment, and the skills surface    |
 | [JE-022](specs/JE-022-ink-acid-identity.md) / [Plan](plans/JE-022-ink-acid-identity.md)                                     | 05    | `DONE`    | JE-021         | Ink-and-acid dark-first palette, self-hosted General Sans / Cabinet Grotesk, and forced surface cues |
+| [JE-023](specs/JE-023-explicit-search-activation-and-fetch-budgets.md) / [Plan](plans/JE-023-explicit-search-activation-and-fetch-budgets.md) | 06 | `READY` | JE-022 | Explicit-only search activation, meaningful-criteria validation, and bounded provider fan-out |
 
 
 None of the `IN PROGRESS` rows may move to `DONE` until its own acceptance and
@@ -246,6 +252,9 @@ are unavailable until the key is supplied, which is a user action.
 7. No Batch 05 task changes a backend contract. A redesign requirement that
   appears to need one — pagination and company logos are the candidates — is
    reported as a finding rather than worked around client side.
+8. Batch 06 begins with JE-023 as a cross-repository safety correction. No
+   backend startup or frontend lifecycle event may contact a provider; only an
+   explicit Search or Refresh action crosses the activation boundary.
 
 When adding a pair, add its row in the same change as its Spec and Plan. A blocked
 row must name its dependency or explain its external blocker directly below the
