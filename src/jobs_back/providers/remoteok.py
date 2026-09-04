@@ -179,6 +179,9 @@ class RemoteOKProvider:
             if job is not None:
                 normalized.append(job)
 
+        truncated = len(normalized) > self._batch_size
+        normalized = normalized[: self._batch_size]
+
         if not normalized:
             yield ProviderPageBatch(
                 items=[],
@@ -199,4 +202,7 @@ class RemoteOKProvider:
                 items=normalized[start:end],
                 page=index + 1,
                 total_pages=total_pages,
+                warnings=(f"results truncated at {self._batch_size}",)
+                if truncated and index == 0
+                else (),
             )

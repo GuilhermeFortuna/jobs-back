@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     search_state_ttl_minutes: int = Field(default=60, alias="SEARCH_STATE_TTL_MINUTES")
     search_max_states: int = Field(default=200, alias="SEARCH_MAX_STATES")
     search_max_items: int = Field(default=100_000, alias="SEARCH_MAX_ITEMS")
+    search_max_candidates_per_search: int = Field(
+        default=1_000,
+        ge=1,
+        le=10_000,
+        alias="SEARCH_MAX_CANDIDATES_PER_SEARCH",
+    )
     search_eviction_interval_seconds: int = Field(
         default=60,
         alias="SEARCH_EVICTION_INTERVAL_SECONDS",

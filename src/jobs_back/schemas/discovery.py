@@ -45,6 +45,19 @@ class SearchFilters(BaseModel):
     def trim_whitespace(cls, value: str) -> str:
         return " ".join(value.split())
 
+    def has_search_criteria(self) -> bool:
+        """Whether these filters substantively constrain provider work."""
+        return bool(
+            self.query
+            or self.location
+            or self.country
+            or self.worldwide is True
+            or self.seniority
+            or self.employment_types
+            or self.minimum_salary is not None
+            or self.posted_within_days is not None
+        )
+
 
 class ProfileCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")

@@ -218,7 +218,7 @@ class RemotiveProvider:
             headers={"User-Agent": "JobScout/1.0"},
         )
         self._max_retries = max_retries
-        self._result_cap = result_cap
+        self._result_cap = max(1, result_cap)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -314,6 +314,8 @@ class RemotiveProvider:
             job = normalize_job(item)
             if job is not None:
                 normalized.append(job)
+
+        normalized = normalized[: self._result_cap]
 
         warnings: list[str] = []
         if warning:

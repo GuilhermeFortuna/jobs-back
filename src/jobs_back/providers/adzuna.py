@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 API_BASE = "https://api.adzuna.com/v1/api/jobs"
 DEFAULT_RESULTS_PER_PAGE = 20
 DEFAULT_REQUEST_BUDGET = 50
+DEFAULT_RESULT_CAP = 200
 
 
 class _RequestBudget:
@@ -222,6 +223,7 @@ class AdzunaProvider:
         timeout: float = 20,
         max_retries: int = 3,
         request_budget: int = DEFAULT_REQUEST_BUDGET,
+        result_cap: int = DEFAULT_RESULT_CAP,
         results_per_page: int = DEFAULT_RESULTS_PER_PAGE,
     ) -> None:
         self._app_id = app_id
@@ -235,6 +237,7 @@ class AdzunaProvider:
         self._concurrency = concurrency
         self._max_retries = max_retries
         self._request_budget = max(1, request_budget)
+        self._result_cap = max(1, result_cap)
         self._results_per_page = max(1, min(results_per_page, 50))
 
     async def close(self) -> None:
@@ -356,6 +359,19 @@ class AdzunaProvider:
 
     async def pages(self, filters: SearchFilters) -> AsyncIterator[ProviderPageBatch]:
         budget = _RequestBudget(self._request_budget)
+        accepted = 0
+
+        def cap(items: list[JobResult]) -> tuple[list[JobResult], tuple[str, ...]]:
+            nonlocal accepted
+            remaining = self._result_cap - accepted
+            capped = items[: max(0, remaining)]
+            accepted += len(capped)
+            return capped, (
+                (f"results truncated at {self._result_cap}",)
+                if len(capped) < len(items)
+                else ()
+            )
+
         country = self._country_for_filters(filters)
         payload, warning, quota_exhausted = await self._request_page(
             filters,
@@ -377,13 +393,17 @@ class AdzunaProvider:
             total = int(_first(payload, "count", default=len(raw_items)))
             page_size = self._results_per_page
             total_pages = max(1, math.ceil(total / page_size))
-            first_batch = ProviderPageBatch(
-                items=self._normalize_page_items(
+            items, warnings = cap(
+                self._normalize_page_items(
                     raw_items,
                     queried_country=country,
-                ),
+                )
+            )
+            first_batch = ProviderPageBatch(
+                items=items,
                 page=1,
                 total_pages=total_pages,
+                warnings=warnings,
             )
         except (TypeError, ValueError):
             logger.debug("Adzuna page 1 could not be processed", exc_info=True)
@@ -396,7 +416,7 @@ class AdzunaProvider:
             return
         yield first_batch
 
-        if quota_exhausted or total_pages <= 1:
+        if quota_exhausted or total_pages <= 1 or accepted >= self._result_cap:
             if quota_exhausted and warning:
                 yield ProviderPageBatch(
                     items=[],
@@ -452,7 +472,15 @@ class AdzunaProvider:
                 if result is None:
                     finished += 1
                     continue
-                yield result
+                items, warnings = cap(result.items)
+                yield ProviderPageBatch(
+                    items=items,
+                    page=result.page,
+                    total_pages=result.total_pages,
+                    warnings=result.warnings + warnings,
+                )
+                if accepted >= self._result_cap:
+                    break
                 if result.warnings and any(
                     "quota" in item.lower() or "budget" in item.lower()
                     for item in result.warnings

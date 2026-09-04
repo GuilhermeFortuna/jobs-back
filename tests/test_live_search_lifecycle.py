@@ -4,28 +4,19 @@ import asyncio
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import sessionmaker
 
 from jobs_back.config import Settings
-from jobs_back.models.profile import Profile
 from jobs_back.schemas.discovery import SearchFilters
 from jobs_back.search.live import LiveSearchManager
 from tests.helpers.fake_provider import FakeProvider
 
 
 @pytest.mark.asyncio
-async def test_warm_defaults_starts_profile_searches(db_session) -> None:
-    db_session.add(
-        Profile(
-            display_name="Warm",
-            preferences=SearchFilters(query="warm").model_dump(mode="json"),
-        )
-    )
-    db_session.flush()
+async def test_startup_background_tasks_do_not_start_profile_searches() -> None:
     manager = LiveSearchManager(provider=FakeProvider(total_pages=1, items_per_page=1))
-    session_factory = sessionmaker(bind=db_session.get_bind())
-    await manager.warm_defaults(session_factory)
-    assert manager.states
+    manager.start_background_tasks()
+    await asyncio.sleep(0)
+    assert not manager.states
     await manager.close()
 
 
